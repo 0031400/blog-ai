@@ -4,7 +4,6 @@ import { formatDate } from "../lib/date";
 import { createHomeHref, createPostHref } from "../lib/hashRoute";
 import type { Post } from "../types/post";
 import type { PostFormValues } from "../types/postForm";
-import { WingLayout } from "../components/WingLayout";
 
 type AdminPageProps = {
     apiBaseUrl: string;
@@ -34,6 +33,8 @@ export function AdminPage({
 }: AdminPageProps) {
     const [values, setValues] = useState<PostFormValues>(createInitialValues);
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+    const [editorOpen, setEditorOpen] = useState(false);
+    const [keyword, setKeyword] = useState("");
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState("");
@@ -49,10 +50,24 @@ export function AdminPage({
     );
     const isEditing = selectedPost !== null;
 
+    const filteredPosts = useMemo(() => {
+        const normalizedKeyword = keyword.trim().toLowerCase();
+        if (!normalizedKeyword) {
+            return posts;
+        }
+
+        return posts.filter((post) =>
+            [post.title, post.excerpt, post.category, post.slug].some((value) =>
+                value.toLowerCase().includes(normalizedKeyword),
+            ),
+        );
+    }, [keyword, posts]);
+
     useEffect(() => {
         if (!selectedPost && selectedPostId !== null) {
             setSelectedPostId(null);
             setValues(createInitialValues());
+            setEditorOpen(false);
         }
     }, [selectedPost, selectedPostId]);
 
@@ -81,11 +96,20 @@ export function AdminPage({
     const resetForm = () => {
         setSelectedPostId(null);
         setValues(createInitialValues());
+        setEditorOpen(false);
         setError("");
         setSuccessMessage("");
     };
 
-    const loadPostIntoForm = (
+    const openCreateEditor = () => {
+        setSelectedPostId(null);
+        setValues(createInitialValues());
+        setEditorOpen(true);
+        setError("");
+        setSuccessMessage("");
+    };
+
+    const openEditEditor = (
         post: Post,
         options?: { preserveMessage?: boolean },
     ) => {
@@ -100,6 +124,7 @@ export function AdminPage({
             readingTime: String(post.readingTime),
             publishedAt: new Date(post.publishedAt).toISOString().slice(0, 16),
         });
+        setEditorOpen(true);
         setError("");
         if (!options?.preserveMessage) {
             setSuccessMessage("");
@@ -148,7 +173,7 @@ export function AdminPage({
                 setSuccessMessage("文章已发布。");
             }
 
-            loadPostIntoForm(payload.data, { preserveMessage: true });
+            openEditEditor(payload.data, { preserveMessage: true });
         } catch (submitError) {
             setError(
                 submitError instanceof Error
@@ -160,13 +185,14 @@ export function AdminPage({
         }
     };
 
-    const handleDelete = async () => {
-        if (!selectedPost) {
+    const handleDelete = async (post?: Post | null) => {
+        const targetPost = post ?? selectedPost;
+        if (!targetPost) {
             return;
         }
 
         const confirmed = window.confirm(
-            `确认删除《${selectedPost.title}》吗？此操作不可撤销。`,
+            `确认删除《${targetPost.title}》吗？此操作不可撤销。`,
         );
         if (!confirmed) {
             return;
@@ -178,7 +204,7 @@ export function AdminPage({
 
         try {
             const response = await fetch(
-                `${apiBaseUrl}/api/posts/${selectedPost.id}`,
+                `${apiBaseUrl}/api/posts/${targetPost.id}`,
                 { method: "DELETE" },
             );
             const payload = (await response.json()) as { error?: string };
@@ -189,8 +215,10 @@ export function AdminPage({
                 );
             }
 
-            onPostDeleted(selectedPost.id);
-            resetForm();
+            onPostDeleted(targetPost.id);
+            if (selectedPostId === targetPost.id) {
+                resetForm();
+            }
             setSuccessMessage("文章已删除。");
         } catch (deleteError) {
             setError(
@@ -203,168 +231,215 @@ export function AdminPage({
         }
     };
 
-    const rightAside = (
-        <>
-            <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                        管理状态
-                    </h3>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        Admin
-                    </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            {posts.length}
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            当前文章总数
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            {isEditing ? "编辑模式" : "新建模式"}
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            {isEditing
-                                ? "当前表单会更新现有文章。"
-                                : "当前表单会新建文章。"}
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            {submitting || deleting ? "处理中" : "空闲"}
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            {submitting || deleting
-                                ? "正在与后端同步。"
-                                : "可以继续管理内容。"}
-                        </p>
-                    </div>
-                </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                        快捷入口
-                    </h3>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        Jump
-                    </span>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
+    return (
+        <div className="min-h-screen bg-slate-50 text-slate-800">
+            <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200 bg-white md:flex">
+                <div className="px-5 py-5">
                     <a
                         href={createHomeHref()}
-                        className="rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                        className="text-[28px] font-semibold tracking-[-0.05em] text-slate-900"
                     >
-                        返回首页
+                        blog-ai
                     </a>
-                    {selectedPost ? (
-                        <a
-                            href={createPostHref(selectedPost.slug)}
-                            className="rounded-full bg-rose-500 px-3 py-2 text-sm text-white"
-                        >
-                            查看文章
-                        </a>
-                    ) : null}
+                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
+                        Console
+                    </p>
                 </div>
-            </section>
-        </>
-    );
 
-    return (
-        <WingLayout
-            rightAside={rightAside}
-            main={
-                <>
-                    <section className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 p-2 shadow-sm">
-                        <a
-                            href={createHomeHref()}
-                            className="rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                        >
-                            首页
-                        </a>
-                        <span className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white">
-                            内容管理
+                <div className="px-4">
+                    <button
+                        type="button"
+                        className="flex w-full items-center gap-3 rounded-lg bg-slate-100 px-3 py-2 text-left text-sm text-slate-500"
+                    >
+                        <span>⌕</span>
+                        <span>搜索菜单与内容</span>
+                        <span className="ml-auto rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px]">
+                            Ctrl+K
                         </span>
-                        <button
-                            type="button"
-                            className="ml-auto rounded-xl px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
-                            onClick={resetForm}
-                        >
-                            新建文章
-                        </button>
+                    </button>
+                </div>
+
+                <nav className="mt-4 px-3">
+                    <div className="mb-2 px-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
+                        Content
+                    </div>
+                    <a
+                        href="/#/admin"
+                        className="flex items-center gap-3 rounded-lg bg-slate-900 px-3 py-2.5 text-sm font-medium text-white"
+                    >
+                        <span>▣</span>
+                        <span>文章</span>
+                    </a>
+                    <a
+                        href="/#/admin"
+                        className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+                    >
+                        <span>◌</span>
+                        <span>草稿</span>
+                    </a>
+                    <a
+                        href="/#/admin"
+                        className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+                    >
+                        <span>◌</span>
+                        <span>设置</span>
+                    </a>
+                </nav>
+
+                <div className="mt-auto border-t border-slate-200 p-4">
+                    <div className="rounded-xl bg-slate-50 p-3">
+                        <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
+                                B
+                            </div>
+                            <div>
+                                <div className="text-sm font-medium text-slate-900">
+                                    blog-ai
+                                </div>
+                                <div className="text-xs text-slate-500">
+                                    内容管理后台
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <main className="md:ml-64">
+                <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-6">
+                    <header className="flex flex-col gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center md:justify-between">
+                        <div>
+                            <div className="text-sm text-slate-500">
+                                Contents / Posts
+                            </div>
+                            <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.04em] text-slate-900">
+                                文章
+                            </h1>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <a
+                                href={createHomeHref()}
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
+                            >
+                                返回首页
+                            </a>
+                            {selectedPost ? (
+                                <a
+                                    href={createPostHref(selectedPost.slug)}
+                                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
+                                >
+                                    预览文章
+                                </a>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={openCreateEditor}
+                                className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+                            >
+                                新建文章
+                            </button>
+                        </div>
+                    </header>
+
+                    <section className="mt-4 grid gap-3 md:grid-cols-3">
+                        {[
+                            ["文章总数", `${posts.length}`],
+                            [
+                                "当前模式",
+                                editorOpen
+                                    ? isEditing
+                                        ? "编辑中"
+                                        : "新建中"
+                                    : "浏览中",
+                            ],
+                            [
+                                "同步状态",
+                                submitting || deleting ? "处理中" : "空闲",
+                            ],
+                        ].map(([label, value]) => (
+                            <div
+                                key={label}
+                                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
+                            >
+                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
+                                    {label}
+                                </div>
+                                <div className="mt-2 text-lg font-semibold text-slate-900">
+                                    {value}
+                                </div>
+                            </div>
+                        ))}
                     </section>
 
-                    <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
-                        <div>
-                            <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                                Admin
-                            </span>
-                            <h1 className="mt-2 text-[30px] font-semibold tracking-[-0.05em] text-slate-900 md:text-[34px]">
-                                收紧后的三栏后台
-                            </h1>
-                            <p className="mt-2 text-sm leading-6 text-slate-500">
-                                左侧站点信息，中间单列编辑区，右侧状态和快捷入口，不再把主内容拆成两栏。
-                            </p>
+                    {error ? (
+                        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                            {error}
                         </div>
+                    ) : null}
+                    {successMessage ? (
+                        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                            {successMessage}
+                        </div>
+                    ) : null}
 
-                        {error ? (
-                            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                                {error}
-                            </div>
-                        ) : null}
-                        {successMessage ? (
-                            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                                {successMessage}
-                            </div>
-                        ) : null}
-
-                        <form
-                            onSubmit={handleSubmit}
-                            className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
-                        >
-                            <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    {editorOpen ? (
+                        <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                            <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 md:flex-row md:items-start md:justify-between">
                                 <div>
-                                    <h2 className="text-base font-semibold text-slate-900">
+                                    <div className="text-sm font-medium text-slate-900">
                                         {isEditing ? "编辑文章" : "新建文章"}
-                                    </h2>
-                                    <p className="mt-1 text-sm text-slate-500">
+                                    </div>
+                                    <div className="mt-1 text-sm text-slate-500">
                                         Slug 预览：`/#/posts/{slugPreview}`
-                                    </p>
+                                    </div>
                                 </div>
-                                {isEditing ? (
+                                <div className="flex flex-wrap gap-2">
                                     <button
                                         type="button"
-                                        className="rounded-full border border-slate-200 px-3 py-2 text-sm text-slate-600"
                                         onClick={resetForm}
+                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
                                     >
-                                        退出编辑
+                                        关闭编辑器
                                     </button>
-                                ) : null}
+                                    {isEditing ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleDelete(selectedPost)
+                                            }
+                                            disabled={submitting || deleting}
+                                            className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60"
+                                        >
+                                            {deleting
+                                                ? "删除中..."
+                                                : "删除文章"}
+                                        </button>
+                                    ) : null}
+                                </div>
                             </div>
 
-                            <div className="mt-4 space-y-4">
-                                <Field label="标题">
-                                    <input
-                                        value={values.title}
-                                        onChange={handleChange("title")}
-                                        required
-                                        className={inputClass}
-                                    />
-                                </Field>
-
-                                <Field label="Slug">
-                                    <input
-                                        value={values.slug}
-                                        onChange={handleChange("slug")}
-                                        required
-                                        className={inputClass}
-                                    />
-                                </Field>
+                            <form
+                                onSubmit={handleSubmit}
+                                className="space-y-4 px-4 py-4"
+                            >
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <Field label="标题">
+                                        <input
+                                            value={values.title}
+                                            onChange={handleChange("title")}
+                                            required
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="Slug">
+                                        <input
+                                            value={values.slug}
+                                            onChange={handleChange("slug")}
+                                            required
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                </div>
 
                                 <Field label="摘要">
                                     <textarea
@@ -381,7 +456,7 @@ export function AdminPage({
                                         value={values.content}
                                         onChange={handleChange("content")}
                                         required
-                                        rows={10}
+                                        rows={12}
                                         className={inputClass}
                                     />
                                 </Field>
@@ -433,7 +508,7 @@ export function AdminPage({
                                     <button
                                         type="submit"
                                         disabled={submitting || deleting}
-                                        className="rounded-full bg-rose-500 px-4 py-2 text-sm text-white disabled:opacity-60"
+                                        className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
                                     >
                                         {submitting
                                             ? "提交中..."
@@ -443,87 +518,113 @@ export function AdminPage({
                                     </button>
                                     <button
                                         type="button"
-                                        disabled={submitting || deleting}
-                                        className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600 disabled:opacity-60"
                                         onClick={resetForm}
+                                        disabled={submitting || deleting}
+                                        className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 disabled:opacity-60"
                                     >
                                         重置
                                     </button>
-                                    {isEditing ? (
-                                        <button
-                                            type="button"
-                                            disabled={submitting || deleting}
-                                            className="rounded-full border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600 disabled:opacity-60"
-                                            onClick={handleDelete}
-                                        >
-                                            {deleting
-                                                ? "删除中..."
-                                                : "删除文章"}
-                                        </button>
-                                    ) : null}
+                                </div>
+                            </form>
+                        </section>
+                    ) : null}
+
+                    <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <div className="text-sm font-medium text-slate-900">
+                                    文章列表
+                                </div>
+                                <div className="mt-1 text-sm text-slate-500">
+                                    参考 Halo 控制台的列表型后台结构
                                 </div>
                             </div>
-                        </form>
-
-                        <section className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                            <div className="flex items-center justify-between">
-                                <h2 className="text-base font-semibold text-slate-900">
-                                    文章列表
-                                </h2>
-                                <p className="text-sm text-slate-500">
-                                    点击任意文章进入编辑
-                                </p>
+                            <div className="flex w-full items-center gap-2 md:w-[320px]">
+                                <input
+                                    value={keyword}
+                                    onChange={(event) =>
+                                        setKeyword(event.target.value)
+                                    }
+                                    placeholder="搜索标题、分类、slug"
+                                    className={inputClass}
+                                />
                             </div>
+                        </div>
 
-                            <div className="mt-3 space-y-2">
-                                {posts.map((post) => (
-                                    <button
-                                        key={post.id}
-                                        type="button"
-                                        onClick={() => loadPostIntoForm(post)}
-                                        className={`grid w-full gap-3 rounded-xl border p-3 text-left transition md:grid-cols-[96px_minmax(0,1fr)] ${
-                                            post.id === selectedPostId
-                                                ? "border-rose-200 bg-rose-50/60"
-                                                : "border-slate-200 bg-slate-50/50 hover:bg-slate-50"
-                                        }`}
-                                    >
-                                        <img
-                                            src={post.coverImage}
-                                            alt={post.title}
-                                            className="h-24 w-full rounded-lg object-cover md:w-24"
-                                        />
-                                        <div className="min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                                                <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-medium normal-case tracking-normal text-rose-600">
-                                                    {post.category}
-                                                </span>
-                                                <span>
-                                                    {formatDate(
-                                                        post.publishedAt,
-                                                    )}
-                                                </span>
+                        <div className="divide-y divide-slate-100">
+                            {filteredPosts.map((post) => (
+                                <article key={post.id} className="px-4 py-4">
+                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                        <div className="flex min-w-0 gap-3">
+                                            <img
+                                                src={post.coverImage}
+                                                alt={post.title}
+                                                className="h-20 w-20 rounded-lg object-cover"
+                                            />
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-slate-600">
+                                                        {post.category}
+                                                    </span>
+                                                    <span>
+                                                        {formatDate(
+                                                            post.publishedAt,
+                                                        )}
+                                                    </span>
+                                                    <span>
+                                                        {post.readingTime} min
+                                                    </span>
+                                                </div>
+                                                <h2 className="mt-2 truncate text-base font-semibold text-slate-900">
+                                                    {post.title}
+                                                </h2>
+                                                <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
+                                                    {post.excerpt}
+                                                </p>
                                             </div>
-                                            <div className="mt-2 text-sm font-semibold text-slate-900">
-                                                {post.title}
-                                            </div>
-                                            <p className="mt-1 text-sm leading-6 text-slate-500">
-                                                {post.excerpt}
-                                            </p>
                                         </div>
-                                    </button>
-                                ))}
 
-                                {posts.length === 0 ? (
-                                    <div className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                                        当前还没有文章，先发布第一篇。
+                                        <div className="flex flex-wrap gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    openEditEditor(post)
+                                                }
+                                                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                                            >
+                                                编辑
+                                            </button>
+                                            <a
+                                                href={createPostHref(post.slug)}
+                                                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                                            >
+                                                预览
+                                            </a>
+                                            <button
+                                                type="button"
+                                                onClick={() =>
+                                                    handleDelete(post)
+                                                }
+                                                disabled={deleting}
+                                                className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60"
+                                            >
+                                                删除
+                                            </button>
+                                        </div>
                                     </div>
-                                ) : null}
-                            </div>
-                        </section>
+                                </article>
+                            ))}
+
+                            {filteredPosts.length === 0 ? (
+                                <div className="px-4 py-8 text-center text-sm text-slate-500">
+                                    没有匹配的文章，可以调整搜索词或新建一篇。
+                                </div>
+                            ) : null}
+                        </div>
                     </section>
-                </>
-            }
-        />
+                </div>
+            </main>
+        </div>
     );
 }
 
@@ -539,7 +640,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const inputClass =
-    "w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-rose-300 focus:ring-4 focus:ring-rose-100";
+    "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100";
 
 function toSlug(value: string) {
     return value
