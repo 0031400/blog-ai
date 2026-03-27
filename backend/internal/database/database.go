@@ -43,12 +43,21 @@ func migrate(db *gorm.DB) error {
 
 func backfillPosts(db *gorm.DB) error {
 	updates := map[string]any{
-		"status":        gorm.Expr("CASE WHEN status = '' THEN 'published' ELSE status END"),
-		"visibility":    gorm.Expr("CASE WHEN visibility = '' THEN 'public' ELSE visibility END"),
-		"allow_comment": gorm.Expr("CASE WHEN allow_comment = 0 THEN 1 ELSE allow_comment END"),
+		"status": gorm.Expr(
+			"CASE WHEN status IS NULL OR status = '' THEN 'published' ELSE status END",
+		),
+		"visibility": gorm.Expr(
+			"CASE WHEN visibility IS NULL OR visibility = '' THEN 'public' ELSE visibility END",
+		),
 	}
 
-	return db.Model(&model.Post{}).Where("status = '' OR visibility = ''").Updates(updates).Error
+	if err := db.Model(&model.Post{}).
+		Where("status IS NULL OR status = '' OR visibility IS NULL OR visibility = ''").
+		Updates(updates).Error; err != nil {
+		return err
+	}
+
+	return db.Exec("UPDATE posts SET tags = '[]' WHERE tags IS NULL OR tags = ''").Error
 }
 
 func seedPosts(db *gorm.DB) error {
