@@ -1,6 +1,6 @@
 import { Alert, Box, Button, Card, CardContent, Chip, Container, Stack, Typography } from '@mui/material'
 
-import { createPostHref } from '../lib/hashRoute'
+import { createAdminHref, createPostHref } from '../lib/hashRoute'
 import { formatDate } from '../lib/date'
 import type { Post } from '../types/post'
 import { StatCard } from '../components/StatCard'
@@ -43,6 +43,9 @@ export function HomePage({ error, featuredPost, latestPosts, loading }: HomePage
                 </Button>
                 <Button variant="outlined" size="large" href="http://localhost:8080/api/health" target="_blank">
                   检查 API
+                </Button>
+                <Button variant="outlined" size="large" href={createAdminHref()}>
+                  写新文章
                 </Button>
               </Stack>
               <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} className="pt-2 text-stone-700">

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { CssBaseline, ThemeProvider } from '@mui/material'
 
 import { fallbackPosts } from './data/fallbackPosts'
-import { getPostSlugFromHash } from './lib/hashRoute'
+import { getPostSlugFromHash, isAdminRoute } from './lib/hashRoute'
+import { AdminPage } from './pages/AdminPage'
 import { HomePage } from './pages/HomePage'
 import { PostDetailPage } from './pages/PostDetailPage'
 import { blogTheme } from './theme/blogTheme'
@@ -13,6 +14,7 @@ const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
 function App() {
   const [posts, setPosts] = useState<Post[]>(fallbackPosts)
   const [activeSlug, setActiveSlug] = useState(() => getPostSlugFromHash(window.location.hash))
+  const [isAdminView, setIsAdminView] = useState(() => isAdminRoute(window.location.hash))
   const [activePost, setActivePost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
@@ -58,6 +60,7 @@ function App() {
   useEffect(() => {
     const syncFromHash = () => {
       setActiveSlug(getPostSlugFromHash(window.location.hash))
+      setIsAdminView(isAdminRoute(window.location.hash))
     }
 
     window.addEventListener('hashchange', syncFromHash)
@@ -118,10 +121,17 @@ function App() {
   const featuredPost = posts[0]
   const latestPosts = useMemo(() => posts.slice(1), [posts])
 
+  const handlePostCreated = (post: Post) => {
+    setPosts((currentPosts) => [post, ...currentPosts.filter((currentPost) => currentPost.slug !== post.slug)])
+    setActivePost(post)
+  }
+
   return (
     <ThemeProvider theme={blogTheme}>
       <CssBaseline />
-      {activeSlug ? (
+      {isAdminView ? (
+        <AdminPage apiBaseUrl={apiBaseUrl} onPostCreated={handlePostCreated} />
+      ) : activeSlug ? (
         <PostDetailPage detailError={detailError} detailLoading={detailLoading} post={activePost} />
       ) : (
         <HomePage error={error} featuredPost={featuredPost} latestPosts={latestPosts} loading={loading} />
