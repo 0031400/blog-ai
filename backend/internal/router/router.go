@@ -27,6 +27,7 @@ func New(db *gorm.DB) *gin.Engine {
 	api := r.Group("/api")
 	api.GET("/health", handler.Health)
 	api.GET("/posts", postHandler.List)
+	api.GET("/posts/:slug", postHandler.GetBySlug)
 
 	return r
 }

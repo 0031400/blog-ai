@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Card,
@@ -92,10 +93,23 @@ function formatDate(value: string) {
   }).format(new Date(value))
 }
 
+function getInitialSlug() {
+  const hash = window.location.hash.replace(/^#\/?/, '')
+  if (!hash.startsWith('posts/')) {
+    return ''
+  }
+
+  return decodeURIComponent(hash.slice('posts/'.length))
+}
+
 function App() {
   const [posts, setPosts] = useState<Post[]>(fallbackPosts)
+  const [activeSlug, setActiveSlug] = useState(getInitialSlug)
+  const [activePost, setActivePost] = useState<Post | null>(null)
   const [loading, setLoading] = useState(true)
+  const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState('')
+  const [detailError, setDetailError] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -133,8 +147,81 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    const syncFromHash = () => {
+      setActiveSlug(getInitialSlug())
+    }
+
+    window.addEventListener('hashchange', syncFromHash)
+    return () => {
+      window.removeEventListener('hashchange', syncFromHash)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!activeSlug) {
+      setActivePost(null)
+      setDetailError('')
+      return
+    }
+
+    const cachedPost = posts.find((post) => post.slug === activeSlug)
+    if (cachedPost) {
+      setActivePost(cachedPost)
+    }
+
+    const controller = new AbortController()
+
+    const loadPost = async () => {
+      setDetailLoading(true)
+
+      try {
+        const response = await fetch(`${apiBaseUrl}/api/posts/${activeSlug}`, {
+          signal: controller.signal,
+        })
+
+        if (!response.ok) {
+          throw new Error(`Request failed with status ${response.status}`)
+        }
+
+        const payload: { data: Post } = await response.json()
+        setActivePost(payload.data)
+        setDetailError('')
+      } catch (fetchError) {
+        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') {
+          return
+        }
+
+        if (!cachedPost) {
+          setDetailError('这篇文章暂时无法加载。')
+        }
+      } finally {
+        setDetailLoading(false)
+      }
+    }
+
+    void loadPost()
+
+    return () => {
+      controller.abort()
+    }
+  }, [activeSlug, posts])
+
   const featuredPost = posts[0]
   const latestPosts = useMemo(() => posts.slice(1), [posts])
+
+  if (activeSlug) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <DetailPage
+          detailError={detailError}
+          detailLoading={detailLoading}
+          post={activePost}
+        />
+      </ThemeProvider>
+    )
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -158,6 +245,13 @@ function App() {
                 <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
                   <Button variant="contained" size="large" href="#latest">
                     看最新文章
+                  </Button>
+                  <Button
+                    variant="text"
+                    size="large"
+                    href={featuredPost ? `#/posts/${featuredPost.slug}` : '#latest'}
+                  >
+                    进入精选文章
                   </Button>
                   <Button variant="outlined" size="large" href="http://localhost:8080/api/health" target="_blank">
                     检查 API
@@ -195,6 +289,14 @@ function App() {
                         sx={{ bgcolor: 'rgba(255,255,255,0.12)', color: 'white' }}
                       />
                     </Stack>
+                    <Button
+                      variant="contained"
+                      color="secondary"
+                      href={featuredPost ? `#/posts/${featuredPost.slug}` : '#latest'}
+                      sx={{ mt: 3, alignSelf: 'flex-start' }}
+                    >
+                      阅读全文
+                    </Button>
                   </Box>
                 </Stack>
               </Box>
@@ -236,6 +338,13 @@ function App() {
                       <Typography className="mt-3 flex-1 leading-7 text-stone-700">
                         {post.excerpt}
                       </Typography>
+                      <Button
+                        variant="text"
+                        href={`#/posts/${post.slug}`}
+                        sx={{ mt: 2, alignSelf: 'flex-start', px: 0 }}
+                      >
+                        阅读全文
+                      </Button>
                       <Typography className="mt-5 text-sm text-stone-500">{formatDate(post.publishedAt)}</Typography>
                     </CardContent>
                   </Card>
@@ -250,6 +359,76 @@ function App() {
         </Container>
       </Box>
     </ThemeProvider>
+  )
+}
+
+function DetailPage({
+  detailError,
+  detailLoading,
+  post,
+}: {
+  detailError: string
+  detailLoading: boolean
+  post: Post | null
+}) {
+  return (
+    <Box className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(23,76,60,0.24),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(199,103,45,0.2),_transparent_26%),linear-gradient(180deg,_#f7f2e9_0%,_#efe4d4_100%)] text-stone-900">
+      <Container maxWidth="md" className="px-4 py-8 md:py-14">
+        <Button href="#/" sx={{ mb: 3, px: 0 }}>
+          返回首页
+        </Button>
+
+        {detailError ? <Alert severity="error">{detailError}</Alert> : null}
+
+        {post ? (
+          <Box className="overflow-hidden rounded-[32px] border border-white/60 bg-white/60 shadow-[0_30px_80px_rgba(64,45,24,0.12)] backdrop-blur">
+            <Box className="h-[260px] bg-cover bg-center md:h-[360px]" sx={{ backgroundImage: `url(${post.coverImage})` }} />
+            <Box className="px-6 py-8 md:px-10 md:py-10">
+              <Stack direction="row" spacing={1.5} className="flex-wrap">
+                <Chip label={post.category} color="secondary" />
+                <Chip label={`${post.readingTime} min read`} variant="outlined" />
+                <Chip label={formatDate(post.publishedAt)} variant="outlined" />
+              </Stack>
+
+              <Typography variant="h1" sx={{ mt: 3, fontSize: { xs: '2.6rem', md: '4.4rem' }, lineHeight: 0.96 }}>
+                {post.title}
+              </Typography>
+
+              <Typography className="mt-4 max-w-2xl text-lg leading-8 text-stone-700">
+                {post.excerpt}
+              </Typography>
+
+              <Stack direction="row" spacing={2} className="mt-8 items-center">
+                <Avatar sx={{ bgcolor: '#174c3c' }}>L</Avatar>
+                <Box>
+                  <Typography className="font-semibold text-stone-900">Long Form Notes</Typography>
+                  <Typography className="text-sm text-stone-500">
+                    {detailLoading ? '正在同步最新内容...' : '独立开发 / 技术写作 / 个人博客实验'}
+                  </Typography>
+                </Box>
+              </Stack>
+
+              <Box className="mt-10 space-y-6 text-[1.06rem] leading-8 text-stone-800">
+                {post.content.split('。').filter(Boolean).map((paragraph, index) => (
+                  <Typography key={`${post.slug}-${index}`}>
+                    {paragraph.trim()}。
+                  </Typography>
+                ))}
+              </Box>
+            </Box>
+          </Box>
+        ) : (
+          <Card elevation={0} className="border border-white/60 bg-white/70 backdrop-blur">
+            <CardContent className="p-8">
+              <Typography variant="h4">{detailLoading ? '正在加载文章...' : '暂时没有找到这篇文章'}</Typography>
+              <Typography className="mt-3 text-stone-700">
+                你可以先返回首页查看文章列表，或者确认后端服务是否已经启动。
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
+      </Container>
+    </Box>
   )
 }
 

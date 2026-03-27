@@ -30,3 +30,21 @@ func (h PostHandler) List(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"data": posts})
 }
+
+// GetBySlug returns a single post by its slug.
+func (h PostHandler) GetBySlug(c *gin.Context) {
+	slug := c.Param("slug")
+
+	var post model.Post
+	if err := h.db.Where("slug = ?", slug).First(&post).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load post"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": post})
+}
