@@ -12,7 +12,7 @@ func New(db *gorm.DB) *gin.Engine {
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 
 		if c.Request.Method == "OPTIONS" {
 			c.AbortWithStatus(204)
@@ -29,6 +29,8 @@ func New(db *gorm.DB) *gin.Engine {
 	api.GET("/posts", postHandler.List)
 	api.GET("/posts/:slug", postHandler.GetBySlug)
 	api.POST("/posts", postHandler.Create)
+	api.PUT("/posts/:id", postHandler.Update)
+	api.DELETE("/posts/:id", postHandler.Delete)
 
 	return r
 }
