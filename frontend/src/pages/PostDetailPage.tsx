@@ -1,73 +1,148 @@
-import { Alert, Avatar, Box, Button, Card, CardContent, Chip, Container, Stack, Typography } from '@mui/material'
-
-import { createHomeHref } from '../lib/hashRoute'
-import { formatDate } from '../lib/date'
-import type { Post } from '../types/post'
+import { createHomeHref } from "../lib/hashRoute";
+import { formatDate } from "../lib/date";
+import type { Post } from "../types/post";
+import { WingLayout } from "../components/WingLayout";
 
 type PostDetailPageProps = {
-  detailError: string
-  detailLoading: boolean
-  post: Post | null
-}
+    detailError: string;
+    detailLoading: boolean;
+    post: Post | null;
+};
 
-export function PostDetailPage({ detailError, detailLoading, post }: PostDetailPageProps) {
-  return (
-    <Box className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(23,76,60,0.24),_transparent_28%),radial-gradient(circle_at_bottom_right,_rgba(199,103,45,0.2),_transparent_26%),linear-gradient(180deg,_#f7f2e9_0%,_#efe4d4_100%)] text-stone-900">
-      <Container maxWidth="md" className="px-4 py-8 md:py-14">
-        <Button href={createHomeHref()} sx={{ mb: 3, px: 0 }}>
-          返回首页
-        </Button>
+export function PostDetailPage({
+    detailError,
+    detailLoading,
+    post,
+}: PostDetailPageProps) {
+    const rightAside = (
+        <>
+            <section className="wing-widget">
+                <div className="wing-widget-title-row">
+                    <h3>阅读信息</h3>
+                    <span>Meta</span>
+                </div>
+                <div className="wing-mini-list">
+                    <div>
+                        <strong>{post ? post.category : "未分类"}</strong>
+                        <p>文章分类</p>
+                    </div>
+                    <div>
+                        <strong>
+                            {post ? `${post.readingTime} min` : "--"}
+                        </strong>
+                        <p>预计阅读时间</p>
+                    </div>
+                    <div>
+                        <strong>
+                            {post ? formatDate(post.publishedAt) : "--"}
+                        </strong>
+                        <p>发布时间</p>
+                    </div>
+                </div>
+            </section>
 
-        {detailError ? <Alert severity="error">{detailError}</Alert> : null}
+            <section className="wing-widget">
+                <div className="wing-widget-title-row">
+                    <h3>状态</h3>
+                    <span>Sync</span>
+                </div>
+                <div className="wing-mini-list">
+                    <div>
+                        <strong>{detailLoading ? "同步中" : "已加载"}</strong>
+                        <p>
+                            {detailLoading
+                                ? "正在请求最新文章内容。"
+                                : "当前显示的是可阅读正文。"}
+                        </p>
+                    </div>
+                    <div>
+                        <strong>Hash Route</strong>
+                        <p>仍然沿用你现有的 `/#/posts/:slug` 路由方式。</p>
+                    </div>
+                </div>
+            </section>
+        </>
+    );
 
-        {post ? (
-          <Box className="overflow-hidden rounded-[32px] border border-white/60 bg-white/60 shadow-[0_30px_80px_rgba(64,45,24,0.12)] backdrop-blur">
-            <Box className="h-[260px] bg-cover bg-center md:h-[360px]" sx={{ backgroundImage: `url(${post.coverImage})` }} />
-            <Box className="px-6 py-8 md:px-10 md:py-10">
-              <Stack direction="row" spacing={1.5} className="flex-wrap">
-                <Chip label={post.category} color="secondary" />
-                <Chip label={`${post.readingTime} min read`} variant="outlined" />
-                <Chip label={formatDate(post.publishedAt)} variant="outlined" />
-              </Stack>
+    return (
+        <WingLayout
+            rightAside={rightAside}
+            main={
+                <>
+                    <section className="wing-tabbar">
+                        <a
+                            href={createHomeHref()}
+                            className="wing-tab wing-tab-active"
+                        >
+                            返回首页
+                        </a>
+                        <span className="wing-tab wing-tab-static">
+                            {detailLoading ? "正在同步" : "文章详情"}
+                        </span>
+                    </section>
 
-              <Typography variant="h1" sx={{ mt: 3, fontSize: { xs: '2.6rem', md: '4.4rem' }, lineHeight: 0.96 }}>
-                {post.title}
-              </Typography>
+                    {detailError ? (
+                        <div className="wing-alert wing-alert-danger">
+                            {detailError}
+                        </div>
+                    ) : null}
 
-              <Typography className="mt-4 max-w-2xl text-lg leading-8 text-stone-700">
-                {post.excerpt}
-              </Typography>
+                    {post ? (
+                        <article className="wing-post-panel">
+                            <div className="wing-post-cover">
+                                <img src={post.coverImage} alt={post.title} />
+                            </div>
 
-              <Stack direction="row" spacing={2} className="mt-8 items-center">
-                <Avatar sx={{ bgcolor: '#174c3c' }}>L</Avatar>
-                <Box>
-                  <Typography className="font-semibold text-stone-900">Long Form Notes</Typography>
-                  <Typography className="text-sm text-stone-500">
-                    {detailLoading ? '正在同步最新内容...' : '独立开发 / 技术写作 / 个人博客实验'}
-                  </Typography>
-                </Box>
-              </Stack>
+                            <div className="wing-post-body">
+                                <div className="wing-post-meta">
+                                    <span className="wing-tag">
+                                        {post.category}
+                                    </span>
+                                    <span>{formatDate(post.publishedAt)}</span>
+                                    <span>{post.readingTime} min read</span>
+                                </div>
 
-              <Box className="mt-10 space-y-6 text-[1.06rem] leading-8 text-stone-800">
-                {post.content.split('。').filter(Boolean).map((paragraph, index) => (
-                  <Typography key={`${post.slug}-${index}`}>
-                    {paragraph.trim()}。
-                  </Typography>
-                ))}
-              </Box>
-            </Box>
-          </Box>
-        ) : (
-          <Card elevation={0} className="border border-white/60 bg-white/70 backdrop-blur">
-            <CardContent className="p-8">
-              <Typography variant="h4">{detailLoading ? '正在加载文章...' : '暂时没有找到这篇文章'}</Typography>
-              <Typography className="mt-3 text-stone-700">
-                你可以先返回首页查看文章列表，或者确认后端服务是否已经启动。
-              </Typography>
-            </CardContent>
-          </Card>
-        )}
-      </Container>
-    </Box>
-  )
+                                <h1>{post.title}</h1>
+                                <p className="wing-post-excerpt">
+                                    {post.excerpt}
+                                </p>
+
+                                <div className="wing-post-author">
+                                    <div className="wing-post-author-avatar">
+                                        B
+                                    </div>
+                                    <div>
+                                        <strong>blog-ai</strong>
+                                        <p>
+                                            {detailLoading
+                                                ? "正在同步最新内容..."
+                                                : "独立开发 / 技术写作 / 个人博客实验"}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="wing-post-content">
+                                    {post.content
+                                        .split("。")
+                                        .map((paragraph) => paragraph.trim())
+                                        .filter(Boolean)
+                                        .map((paragraph, index) => (
+                                            <p key={`${post.slug}-${index}`}>
+                                                {paragraph}。
+                                            </p>
+                                        ))}
+                                </div>
+                            </div>
+                        </article>
+                    ) : (
+                        <div className="wing-empty-box">
+                            {detailLoading
+                                ? "正在加载文章..."
+                                : "暂时没有找到这篇文章"}
+                        </div>
+                    )}
+                </>
+            }
+        />
+    );
 }
