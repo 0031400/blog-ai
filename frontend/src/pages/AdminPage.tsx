@@ -8,10 +8,13 @@ import type { PostFormValues } from "../types/postForm";
 type AdminPageProps = {
     apiBaseUrl: string;
     onPostCreated: (post: Post) => void;
-    onPostDeleted: (postId: number) => void;
     onPostUpdated: (post: Post) => void;
     posts: Post[];
 };
+
+type ViewMode = "active" | "recycle";
+type StatusFilter = "all" | "draft" | "published";
+type VisibilityFilter = "all" | "public" | "private";
 
 const createInitialValues = (): PostFormValues => ({
     title: "",
@@ -20,21 +23,30 @@ const createInitialValues = (): PostFormValues => ({
     content: "",
     coverImage: "",
     category: "",
+    tags: "",
     readingTime: "5",
+    status: "draft",
+    visibility: "public",
+    pinned: false,
+    allowComment: true,
+    deleted: false,
     publishedAt: new Date().toISOString().slice(0, 16),
 });
 
 export function AdminPage({
     apiBaseUrl,
     onPostCreated,
-    onPostDeleted,
     onPostUpdated,
     posts,
 }: AdminPageProps) {
     const [values, setValues] = useState<PostFormValues>(createInitialValues);
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [viewMode, setViewMode] = useState<ViewMode>("active");
     const [keyword, setKeyword] = useState("");
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+    const [visibilityFilter, setVisibilityFilter] =
+        useState<VisibilityFilter>("all");
     const [submitting, setSubmitting] = useState(false);
     const [deleting, setDeleting] = useState(false);
     const [error, setError] = useState("");
@@ -52,16 +64,42 @@ export function AdminPage({
 
     const filteredPosts = useMemo(() => {
         const normalizedKeyword = keyword.trim().toLowerCase();
-        if (!normalizedKeyword) {
-            return posts;
-        }
 
-        return posts.filter((post) =>
-            [post.title, post.excerpt, post.category, post.slug].some((value) =>
-                value.toLowerCase().includes(normalizedKeyword),
-            ),
-        );
-    }, [keyword, posts]);
+        return posts.filter((post) => {
+            if (viewMode === "active" && post.deleted) return false;
+            if (viewMode === "recycle" && !post.deleted) return false;
+            if (statusFilter !== "all" && post.status !== statusFilter)
+                return false;
+            if (
+                visibilityFilter !== "all" &&
+                post.visibility !== visibilityFilter
+            )
+                return false;
+            if (!normalizedKeyword) return true;
+
+            return [
+                post.title,
+                post.excerpt,
+                post.category,
+                post.slug,
+                (post.tags ?? []).join(" "),
+            ].some((value) => value.toLowerCase().includes(normalizedKeyword));
+        });
+    }, [keyword, posts, statusFilter, viewMode, visibilityFilter]);
+
+    const stats = useMemo(
+        () => ({
+            total: posts.length,
+            published: posts.filter(
+                (post) => !post.deleted && post.status === "published",
+            ).length,
+            drafts: posts.filter(
+                (post) => !post.deleted && post.status === "draft",
+            ).length,
+            recycled: posts.filter((post) => post.deleted).length,
+        }),
+        [posts],
+    );
 
     useEffect(() => {
         if (!selectedPost && selectedPostId !== null) {
@@ -73,14 +111,22 @@ export function AdminPage({
 
     const handleChange =
         (field: keyof PostFormValues) =>
-        (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-            const nextValue = event.target.value;
+        (
+            event: React.ChangeEvent<
+                HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+            >,
+        ) => {
+            const target = event.target;
+            const nextValue =
+                target instanceof HTMLInputElement && target.type === "checkbox"
+                    ? target.checked
+                    : target.value;
 
             setValues((currentValues) => {
                 const nextValues = { ...currentValues, [field]: nextValue };
 
                 if (field === "title") {
-                    const autoSlug = toSlug(nextValue);
+                    const autoSlug = toSlug(String(nextValue));
                     if (
                         !currentValues.slug ||
                         currentValues.slug === toSlug(currentValues.title)
@@ -102,8 +148,8 @@ export function AdminPage({
     };
 
     const openCreateEditor = () => {
-        setSelectedPostId(null);
         setValues(createInitialValues());
+        setSelectedPostId(null);
         setEditorOpen(true);
         setError("");
         setSuccessMessage("");
@@ -121,7 +167,13 @@ export function AdminPage({
             content: post.content,
             coverImage: post.coverImage,
             category: post.category,
+            tags: (post.tags ?? []).join(", "),
             readingTime: String(post.readingTime),
+            status: post.status,
+            visibility: post.visibility,
+            pinned: post.pinned,
+            allowComment: post.allowComment,
+            deleted: post.deleted,
             publishedAt: new Date(post.publishedAt).toISOString().slice(0, 16),
         });
         setEditorOpen(true);
@@ -133,6 +185,10 @@ export function AdminPage({
 
     const buildPayload = () => ({
         ...values,
+        tags: values.tags
+            .split(",")
+            .map((tag) => tag.trim())
+            .filter(Boolean),
         readingTime: Number(values.readingTime),
         publishedAt: new Date(values.publishedAt).toISOString(),
     });
@@ -147,9 +203,8 @@ export function AdminPage({
             const endpoint = isEditing
                 ? `${apiBaseUrl}/api/posts/${selectedPost.id}`
                 : `${apiBaseUrl}/api/posts`;
-            const method = isEditing ? "PUT" : "POST";
             const response = await fetch(endpoint, {
-                method,
+                method: isEditing ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(buildPayload()),
             });
@@ -170,7 +225,7 @@ export function AdminPage({
                 setSuccessMessage("文章已更新。");
             } else {
                 onPostCreated(payload.data);
-                setSuccessMessage("文章已发布。");
+                setSuccessMessage("文章已创建。");
             }
 
             openEditEditor(payload.data, { preserveMessage: true });
@@ -185,46 +240,124 @@ export function AdminPage({
         }
     };
 
-    const handleDelete = async (post?: Post | null) => {
-        const targetPost = post ?? selectedPost;
-        if (!targetPost) {
-            return;
-        }
-
+    const handleSoftDelete = async (post: Post) => {
         const confirmed = window.confirm(
-            `确认删除《${targetPost.title}》吗？此操作不可撤销。`,
+            `确认将《${post.title}》移入回收站吗？`,
         );
-        if (!confirmed) {
-            return;
-        }
+        if (!confirmed) return;
 
         setDeleting(true);
         setError("");
         setSuccessMessage("");
 
         try {
-            const response = await fetch(
-                `${apiBaseUrl}/api/posts/${targetPost.id}`,
-                { method: "DELETE" },
-            );
-            const payload = (await response.json()) as { error?: string };
-            if (!response.ok) {
+            const response = await fetch(`${apiBaseUrl}/api/posts/${post.id}`, {
+                method: "DELETE",
+            });
+            const payload = (await response.json()) as {
+                data?: Post;
+                error?: string;
+            };
+            if (!response.ok || !payload.data) {
                 throw new Error(
                     payload.error ??
                         `Request failed with status ${response.status}`,
                 );
             }
 
-            onPostDeleted(targetPost.id);
-            if (selectedPostId === targetPost.id) {
+            onPostUpdated(payload.data);
+            if (selectedPostId === post.id) {
                 resetForm();
             }
-            setSuccessMessage("文章已删除。");
+            setSuccessMessage("文章已移入回收站。");
         } catch (deleteError) {
             setError(
                 deleteError instanceof Error
                     ? deleteError.message
                     : "删除失败，请稍后重试。",
+            );
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const handleRestore = async (post: Post) => {
+        setDeleting(true);
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            const response = await fetch(
+                `${apiBaseUrl}/api/posts/${post.id}/restore`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ deleted: false }),
+                },
+            );
+            const payload = (await response.json()) as {
+                data?: Post;
+                error?: string;
+            };
+            if (!response.ok || !payload.data) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+
+            onPostUpdated(payload.data);
+            setSuccessMessage("文章已恢复。");
+        } catch (restoreError) {
+            setError(
+                restoreError instanceof Error
+                    ? restoreError.message
+                    : "恢复失败，请稍后重试。",
+            );
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const quickUpdatePost = async (
+        post: Post,
+        patch: Partial<Post>,
+        successText: string,
+    ) => {
+        setDeleting(true);
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            const response = await fetch(`${apiBaseUrl}/api/posts/${post.id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    ...post,
+                    ...patch,
+                }),
+            });
+            const payload = (await response.json()) as {
+                data?: Post;
+                error?: string;
+            };
+            if (!response.ok || !payload.data) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+
+            onPostUpdated(payload.data);
+            if (selectedPostId === post.id) {
+                openEditEditor(payload.data, { preserveMessage: true });
+            }
+            setSuccessMessage(successText);
+        } catch (updateError) {
+            setError(
+                updateError instanceof Error
+                    ? updateError.message
+                    : "更新失败，请稍后重试。",
             );
         } finally {
             setDeleting(false);
@@ -247,73 +380,50 @@ export function AdminPage({
                 </div>
 
                 <div className="px-4">
-                    <button
-                        type="button"
-                        className="flex w-full items-center gap-3 rounded-lg bg-slate-100 px-3 py-2 text-left text-sm text-slate-500"
-                    >
+                    <div className="flex items-center gap-3 rounded-lg bg-slate-100 px-3 py-2 text-left text-sm text-slate-500">
                         <span>⌕</span>
-                        <span>搜索菜单与内容</span>
-                        <span className="ml-auto rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[11px]">
-                            Ctrl+K
-                        </span>
-                    </button>
+                        <span>内容管理</span>
+                    </div>
                 </div>
 
                 <nav className="mt-4 px-3">
                     <div className="mb-2 px-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
                         Content
                     </div>
-                    <a
-                        href="/#/admin"
-                        className="flex items-center gap-3 rounded-lg bg-slate-900 px-3 py-2.5 text-sm font-medium text-white"
+                    <button
+                        type="button"
+                        onClick={() => setViewMode("active")}
+                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${viewMode === "active" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
                     >
                         <span>▣</span>
                         <span>文章</span>
-                    </a>
-                    <a
-                        href="/#/admin"
-                        className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setViewMode("recycle")}
+                        className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${viewMode === "recycle" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
                     >
                         <span>◌</span>
-                        <span>草稿</span>
-                    </a>
-                    <a
-                        href="/#/admin"
-                        className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100"
-                    >
-                        <span>◌</span>
-                        <span>设置</span>
-                    </a>
+                        <span>回收站</span>
+                    </button>
                 </nav>
 
                 <div className="mt-auto border-t border-slate-200 p-4">
-                    <div className="rounded-xl bg-slate-50 p-3">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white">
-                                B
-                            </div>
-                            <div>
-                                <div className="text-sm font-medium text-slate-900">
-                                    blog-ai
-                                </div>
-                                <div className="text-xs text-slate-500">
-                                    内容管理后台
-                                </div>
-                            </div>
-                        </div>
+                    <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
+                        参考 Halo 的文章内容管理：状态、可见性、标签、回收站。
                     </div>
                 </div>
             </aside>
 
             <main className="md:ml-64">
-                <div className="mx-auto max-w-6xl px-4 py-4 md:px-6 md:py-6">
+                <div className="mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-6">
                     <header className="flex flex-col gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center md:justify-between">
                         <div>
                             <div className="text-sm text-slate-500">
                                 Contents / Posts
                             </div>
                             <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.04em] text-slate-900">
-                                文章
+                                {viewMode === "active" ? "文章管理" : "回收站"}
                             </h1>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -341,21 +451,12 @@ export function AdminPage({
                         </div>
                     </header>
 
-                    <section className="mt-4 grid gap-3 md:grid-cols-3">
+                    <section className="mt-4 grid gap-3 md:grid-cols-4">
                         {[
-                            ["文章总数", `${posts.length}`],
-                            [
-                                "当前模式",
-                                editorOpen
-                                    ? isEditing
-                                        ? "编辑中"
-                                        : "新建中"
-                                    : "浏览中",
-                            ],
-                            [
-                                "同步状态",
-                                submitting || deleting ? "处理中" : "空闲",
-                            ],
+                            ["总文章", `${stats.total}`],
+                            ["已发布", `${stats.published}`],
+                            ["草稿", `${stats.drafts}`],
+                            ["回收站", `${stats.recycled}`],
                         ].map(([label, value]) => (
                             <div
                                 key={label}
@@ -401,18 +502,16 @@ export function AdminPage({
                                     >
                                         关闭编辑器
                                     </button>
-                                    {isEditing ? (
+                                    {isEditing && !selectedPost.deleted ? (
                                         <button
                                             type="button"
                                             onClick={() =>
-                                                handleDelete(selectedPost)
+                                                handleSoftDelete(selectedPost)
                                             }
                                             disabled={submitting || deleting}
                                             className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60"
                                         >
-                                            {deleting
-                                                ? "删除中..."
-                                                : "删除文章"}
+                                            移入回收站
                                         </button>
                                     ) : null}
                                 </div>
@@ -441,41 +540,52 @@ export function AdminPage({
                                     </Field>
                                 </div>
 
-                                <Field label="摘要">
-                                    <textarea
-                                        value={values.excerpt}
-                                        onChange={handleChange("excerpt")}
-                                        required
-                                        rows={3}
-                                        className={inputClass}
-                                    />
-                                </Field>
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <Field label="摘要">
+                                        <textarea
+                                            value={values.excerpt}
+                                            onChange={handleChange("excerpt")}
+                                            required
+                                            rows={3}
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="封面图 URL">
+                                        <input
+                                            value={values.coverImage}
+                                            onChange={handleChange(
+                                                "coverImage",
+                                            )}
+                                            required
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                </div>
 
                                 <Field label="正文">
                                     <textarea
                                         value={values.content}
                                         onChange={handleChange("content")}
                                         required
-                                        rows={12}
+                                        rows={10}
                                         className={inputClass}
                                     />
                                 </Field>
 
-                                <Field label="封面图 URL">
-                                    <input
-                                        value={values.coverImage}
-                                        onChange={handleChange("coverImage")}
-                                        required
-                                        className={inputClass}
-                                    />
-                                </Field>
-
-                                <div className="grid gap-4 md:grid-cols-3">
+                                <div className="grid gap-4 md:grid-cols-4">
                                     <Field label="分类">
                                         <input
                                             value={values.category}
                                             onChange={handleChange("category")}
                                             required
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="标签">
+                                        <input
+                                            value={values.tags}
+                                            onChange={handleChange("tags")}
+                                            placeholder="React, Go, 设计"
                                             className={inputClass}
                                         />
                                     </Field>
@@ -504,6 +614,56 @@ export function AdminPage({
                                     </Field>
                                 </div>
 
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <Field label="发布状态">
+                                        <select
+                                            value={values.status}
+                                            onChange={handleChange("status")}
+                                            className={inputClass}
+                                        >
+                                            <option value="draft">草稿</option>
+                                            <option value="published">
+                                                已发布
+                                            </option>
+                                        </select>
+                                    </Field>
+                                    <Field label="可见性">
+                                        <select
+                                            value={values.visibility}
+                                            onChange={handleChange(
+                                                "visibility",
+                                            )}
+                                            className={inputClass}
+                                        >
+                                            <option value="public">公开</option>
+                                            <option value="private">
+                                                私密
+                                            </option>
+                                        </select>
+                                    </Field>
+                                </div>
+
+                                <div className="flex flex-wrap gap-4 rounded-xl bg-slate-50 px-4 py-3">
+                                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={values.pinned}
+                                            onChange={handleChange("pinned")}
+                                        />
+                                        <span>置顶文章</span>
+                                    </label>
+                                    <label className="flex items-center gap-2 text-sm text-slate-600">
+                                        <input
+                                            type="checkbox"
+                                            checked={values.allowComment}
+                                            onChange={handleChange(
+                                                "allowComment",
+                                            )}
+                                        />
+                                        <span>允许评论</span>
+                                    </label>
+                                </div>
+
                                 <div className="flex flex-wrap gap-2">
                                     <button
                                         type="submit"
@@ -514,7 +674,7 @@ export function AdminPage({
                                             ? "提交中..."
                                             : isEditing
                                               ? "保存修改"
-                                              : "发布文章"}
+                                              : "创建文章"}
                                     </button>
                                     <button
                                         type="button"
@@ -530,31 +690,58 @@ export function AdminPage({
                     ) : null}
 
                     <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <div className="text-sm font-medium text-slate-900">
                                     文章列表
                                 </div>
                                 <div className="mt-1 text-sm text-slate-500">
-                                    参考 Halo 控制台的列表型后台结构
+                                    支持草稿/发布、可见性、标签和回收站筛选。
                                 </div>
                             </div>
-                            <div className="flex w-full items-center gap-2 md:w-[320px]">
+                            <div className="grid gap-2 md:grid-cols-2 lg:flex">
                                 <input
                                     value={keyword}
                                     onChange={(event) =>
                                         setKeyword(event.target.value)
                                     }
-                                    placeholder="搜索标题、分类、slug"
-                                    className={inputClass}
+                                    placeholder="搜索标题、分类、slug、标签"
+                                    className={`${inputClass} min-w-[240px]`}
                                 />
+                                <select
+                                    value={statusFilter}
+                                    onChange={(event) =>
+                                        setStatusFilter(
+                                            event.target.value as StatusFilter,
+                                        )
+                                    }
+                                    className={inputClass}
+                                >
+                                    <option value="all">全部状态</option>
+                                    <option value="published">已发布</option>
+                                    <option value="draft">草稿</option>
+                                </select>
+                                <select
+                                    value={visibilityFilter}
+                                    onChange={(event) =>
+                                        setVisibilityFilter(
+                                            event.target
+                                                .value as VisibilityFilter,
+                                        )
+                                    }
+                                    className={inputClass}
+                                >
+                                    <option value="all">全部可见性</option>
+                                    <option value="public">公开</option>
+                                    <option value="private">私密</option>
+                                </select>
                             </div>
                         </div>
 
                         <div className="divide-y divide-slate-100">
                             {filteredPosts.map((post) => (
                                 <article key={post.id} className="px-4 py-4">
-                                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
                                         <div className="flex min-w-0 gap-3">
                                             <img
                                                 src={post.coverImage}
@@ -566,50 +753,145 @@ export function AdminPage({
                                                     <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-slate-600">
                                                         {post.category}
                                                     </span>
+                                                    <span
+                                                        className={`rounded-full px-2 py-1 normal-case tracking-normal ${post.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+                                                    >
+                                                        {post.status ===
+                                                        "published"
+                                                            ? "已发布"
+                                                            : "草稿"}
+                                                    </span>
+                                                    <span
+                                                        className={`rounded-full px-2 py-1 normal-case tracking-normal ${post.visibility === "public" ? "bg-sky-50 text-sky-700" : "bg-slate-100 text-slate-700"}`}
+                                                    >
+                                                        {post.visibility ===
+                                                        "public"
+                                                            ? "公开"
+                                                            : "私密"}
+                                                    </span>
+                                                    {post.pinned ? (
+                                                        <span className="rounded-full bg-rose-50 px-2 py-1 normal-case tracking-normal text-rose-700">
+                                                            置顶
+                                                        </span>
+                                                    ) : null}
                                                     <span>
                                                         {formatDate(
                                                             post.publishedAt,
                                                         )}
                                                     </span>
-                                                    <span>
-                                                        {post.readingTime} min
-                                                    </span>
                                                 </div>
                                                 <h2 className="mt-2 truncate text-base font-semibold text-slate-900">
                                                     {post.title}
                                                 </h2>
-                                                <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
+                                                <p className="mt-1 text-sm leading-6 text-slate-500">
                                                     {post.excerpt}
                                                 </p>
+                                                {(post.tags ?? []).length ? (
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {(post.tags ?? []).map(
+                                                            (tag) => (
+                                                                <span
+                                                                    key={`${post.id}-${tag}`}
+                                                                    className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                                                                >
+                                                                    #{tag}
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </div>
 
                                         <div className="flex flex-wrap gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    openEditEditor(post)
-                                                }
-                                                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
-                                            >
-                                                编辑
-                                            </button>
-                                            <a
-                                                href={createPostHref(post.slug)}
-                                                className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
-                                            >
-                                                预览
-                                            </a>
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    handleDelete(post)
-                                                }
-                                                disabled={deleting}
-                                                className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60"
-                                            >
-                                                删除
-                                            </button>
+                                            {!post.deleted ? (
+                                                <>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            openEditEditor(post)
+                                                        }
+                                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                                                    >
+                                                        编辑
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            quickUpdatePost(
+                                                                post,
+                                                                {
+                                                                    status:
+                                                                        post.status ===
+                                                                        "published"
+                                                                            ? "draft"
+                                                                            : "published",
+                                                                },
+                                                                post.status ===
+                                                                    "published"
+                                                                    ? "已转为草稿。"
+                                                                    : "已发布。",
+                                                            )
+                                                        }
+                                                        disabled={deleting}
+                                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 disabled:opacity-60"
+                                                    >
+                                                        {post.status ===
+                                                        "published"
+                                                            ? "转为草稿"
+                                                            : "发布"}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            quickUpdatePost(
+                                                                post,
+                                                                {
+                                                                    visibility:
+                                                                        post.visibility ===
+                                                                        "public"
+                                                                            ? "private"
+                                                                            : "public",
+                                                                },
+                                                                post.visibility ===
+                                                                    "public"
+                                                                    ? "已设为私密。"
+                                                                    : "已设为公开。",
+                                                            )
+                                                        }
+                                                        disabled={deleting}
+                                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 disabled:opacity-60"
+                                                    >
+                                                        {post.visibility ===
+                                                        "public"
+                                                            ? "设为私密"
+                                                            : "设为公开"}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleSoftDelete(
+                                                                post,
+                                                            )
+                                                        }
+                                                        disabled={deleting}
+                                                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60"
+                                                    >
+                                                        回收
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleRestore(post)
+                                                    }
+                                                    disabled={deleting}
+                                                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
+                                                >
+                                                    恢复
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </article>
@@ -617,7 +899,7 @@ export function AdminPage({
 
                             {filteredPosts.length === 0 ? (
                                 <div className="px-4 py-8 text-center text-sm text-slate-500">
-                                    没有匹配的文章，可以调整搜索词或新建一篇。
+                                    没有匹配的文章。
                                 </div>
                             ) : null}
                         </div>

@@ -3,16 +3,28 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 
 import { fallbackPosts } from "./data/fallbackPosts";
 import { getPostSlugFromHash, isAdminRoute } from "./lib/hashRoute";
-import { AdminPage } from "./pages/AdminPage";
-import { HomePage } from "./pages/HomePage";
-import { PostDetailPage } from "./pages/PostDetailPage";
+import { AdminPage, HomePage, PostDetailPage } from "./pages";
 import { blogTheme } from "./theme/blogTheme";
 import type { Post } from "./types/post";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
+function normalizePost(post: Post): Post {
+    return {
+        ...post,
+        tags: Array.isArray(post.tags) ? post.tags : [],
+        status: post.status ?? "draft",
+        visibility: post.visibility ?? "public",
+        pinned: Boolean(post.pinned),
+        allowComment: post.allowComment ?? true,
+        deleted: Boolean(post.deleted),
+    };
+}
+
 function App() {
-    const [posts, setPosts] = useState<Post[]>(fallbackPosts);
+    const [posts, setPosts] = useState<Post[]>(() =>
+        fallbackPosts.map(normalizePost),
+    );
     const [activeSlug, setActiveSlug] = useState(() =>
         getPostSlugFromHash(window.location.hash),
     );
@@ -30,9 +42,12 @@ function App() {
 
         const loadPosts = async () => {
             try {
-                const response = await fetch(`${apiBaseUrl}/api/posts`, {
-                    signal: controller.signal,
-                });
+                const response = await fetch(
+                    `${apiBaseUrl}/api/posts?scope=admin`,
+                    {
+                        signal: controller.signal,
+                    },
+                );
 
                 if (!response.ok) {
                     throw new Error(
@@ -42,7 +57,7 @@ function App() {
 
                 const payload: { data: Post[] } = await response.json();
                 if (payload.data.length > 0) {
-                    setPosts(payload.data);
+                    setPosts(payload.data.map(normalizePost));
                 }
                 setError("");
             } catch (fetchError) {
@@ -85,7 +100,13 @@ function App() {
             return;
         }
 
-        const cachedPost = posts.find((post) => post.slug === activeSlug);
+        const cachedPost = posts.find(
+            (post) =>
+                post.slug === activeSlug &&
+                !post.deleted &&
+                post.status === "published" &&
+                post.visibility === "public",
+        );
         if (cachedPost) {
             setActivePost(cachedPost);
         }
@@ -135,24 +156,39 @@ function App() {
         };
     }, [activeSlug, posts]);
 
-    const featuredPost = posts[0];
-    const latestPosts = useMemo(() => posts.slice(1), [posts]);
+    const publicPosts = useMemo(
+        () =>
+            posts.filter(
+                (post) =>
+                    !post.deleted &&
+                    post.status === "published" &&
+                    post.visibility === "public",
+            ),
+        [posts],
+    );
+
+    const featuredPost = publicPosts[0];
+    const latestPosts = useMemo(() => publicPosts.slice(1), [publicPosts]);
 
     const handlePostCreated = (post: Post) => {
+        const normalizedPost = normalizePost(post);
         setPosts((currentPosts) => [
-            post,
+            normalizedPost,
             ...currentPosts.filter(
-                (currentPost) => currentPost.slug !== post.slug,
+                (currentPost) => currentPost.slug !== normalizedPost.slug,
             ),
         ]);
-        setActivePost(post);
+        setActivePost(normalizedPost);
     };
 
     const handlePostUpdated = (post: Post) => {
+        const normalizedPost = normalizePost(post);
         setPosts((currentPosts) =>
             currentPosts
                 .map((currentPost) =>
-                    currentPost.id === post.id ? post : currentPost,
+                    currentPost.id === normalizedPost.id
+                        ? normalizedPost
+                        : currentPost,
                 )
                 .sort(
                     (left, right) =>
@@ -161,16 +197,9 @@ function App() {
                 ),
         );
         setActivePost((currentPost) =>
-            currentPost?.id === post.id ? post : currentPost,
-        );
-    };
-
-    const handlePostDeleted = (postId: number) => {
-        setPosts((currentPosts) =>
-            currentPosts.filter((currentPost) => currentPost.id !== postId),
-        );
-        setActivePost((currentPost) =>
-            currentPost?.id === postId ? null : currentPost,
+            currentPost?.id === normalizedPost.id
+                ? normalizedPost
+                : currentPost,
         );
     };
 
@@ -181,7 +210,6 @@ function App() {
                 <AdminPage
                     apiBaseUrl={apiBaseUrl}
                     onPostCreated={handlePostCreated}
-                    onPostDeleted={handlePostDeleted}
                     onPostUpdated={handlePostUpdated}
                     posts={posts}
                 />

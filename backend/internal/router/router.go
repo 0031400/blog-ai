@@ -31,6 +31,7 @@ func New(db *gorm.DB) *gin.Engine {
 	api.POST("/posts", postHandler.Create)
 	api.PUT("/posts/:id", postHandler.Update)
 	api.DELETE("/posts/:id", postHandler.Delete)
+	api.PUT("/posts/:id/restore", postHandler.Restore)
 
 	return r
 }
