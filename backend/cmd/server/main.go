@@ -11,12 +11,12 @@ import (
 func main() {
 	cfg := config.Load()
 
-	_, err := database.New(cfg.DatabasePath)
+	db, err := database.New(cfg.DatabasePath)
 	if err != nil {
 		log.Fatalf("failed to initialize database: %v", err)
 	}
 
-	r := router.New()
+	r := router.New(db)
 
 	log.Printf("blog-ai-backend listening on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {
