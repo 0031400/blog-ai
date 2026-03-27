@@ -5,7 +5,9 @@ import { fallbackPosts } from "./data/fallbackPosts";
 import { getPostSlugFromHash, isAdminRoute } from "./lib/hashRoute";
 import { AdminPage, HomePage, PostDetailPage } from "./pages";
 import { blogTheme } from "./theme/blogTheme";
+import type { Category } from "./types/category";
 import type { Post } from "./types/post";
+import type { Tag } from "./types/tag";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
@@ -25,6 +27,8 @@ function App() {
     const [posts, setPosts] = useState<Post[]>(() =>
         fallbackPosts.map(normalizePost),
     );
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [tags, setTags] = useState<Tag[]>([]);
     const [activeSlug, setActiveSlug] = useState(() =>
         getPostSlugFromHash(window.location.hash),
     );
@@ -40,22 +44,40 @@ function App() {
     useEffect(() => {
         const controller = new AbortController();
 
-        const loadPosts = async () => {
+        const loadData = async () => {
             try {
-                const response = await fetch(
-                    `${apiBaseUrl}/api/posts?scope=admin`,
-                    {
-                        signal: controller.signal,
-                    },
-                );
+                const [postsResponse, categoriesResponse, tagsResponse] =
+                    await Promise.all([
+                        fetch(`${apiBaseUrl}/api/posts?scope=admin`, {
+                            signal: controller.signal,
+                        }),
+                        fetch(`${apiBaseUrl}/api/categories`, {
+                            signal: controller.signal,
+                        }),
+                        fetch(`${apiBaseUrl}/api/tags`, {
+                            signal: controller.signal,
+                        }),
+                    ]);
 
-                if (!response.ok) {
+                if (!postsResponse.ok) {
                     throw new Error(
-                        `Request failed with status ${response.status}`,
+                        `Request failed with status ${postsResponse.status}`,
                     );
                 }
 
-                const payload: { data: Post[] } = await response.json();
+                if (categoriesResponse.ok) {
+                    const categoryPayload: { data: Category[] } =
+                        await categoriesResponse.json();
+                    setCategories(categoryPayload.data);
+                }
+
+                if (tagsResponse.ok) {
+                    const tagPayload: { data: Tag[] } =
+                        await tagsResponse.json();
+                    setTags(tagPayload.data);
+                }
+
+                const payload: { data: Post[] } = await postsResponse.json();
                 if (payload.data.length > 0) {
                     setPosts(payload.data.map(normalizePost));
                 }
@@ -74,7 +96,7 @@ function App() {
             }
         };
 
-        void loadPosts();
+        void loadData();
 
         return () => {
             controller.abort();
@@ -209,9 +231,13 @@ function App() {
             {isAdminView ? (
                 <AdminPage
                     apiBaseUrl={apiBaseUrl}
+                    categories={categories}
                     onPostCreated={handlePostCreated}
                     onPostUpdated={handlePostUpdated}
                     posts={posts}
+                    setCategories={setCategories}
+                    setTags={setTags}
+                    tags={tags}
                 />
             ) : activeSlug ? (
                 <PostDetailPage

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"blog-ai/backend/internal/model"
@@ -30,6 +31,10 @@ func New(databasePath string) (*gorm.DB, error) {
 		return nil, fmt.Errorf("backfill posts: %w", err)
 	}
 
+	if err := syncTaxonomies(db); err != nil {
+		return nil, fmt.Errorf("sync taxonomies: %w", err)
+	}
+
 	if err := seedPosts(db); err != nil {
 		return nil, fmt.Errorf("seed posts: %w", err)
 	}
@@ -38,7 +43,7 @@ func New(databasePath string) (*gorm.DB, error) {
 }
 
 func migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&model.Post{})
+	return db.AutoMigrate(&model.Post{}, &model.Category{}, &model.Tag{})
 }
 
 func backfillPosts(db *gorm.DB) error {
@@ -117,4 +122,43 @@ func seedPosts(db *gorm.DB) error {
 	}
 
 	return db.Create(&posts).Error
+}
+
+func syncTaxonomies(db *gorm.DB) error {
+	var posts []model.Post
+	if err := db.Find(&posts).Error; err != nil {
+		return err
+	}
+
+	for _, post := range posts {
+		if post.Category != "" {
+			category := model.Category{
+				Name: post.Category,
+				Slug: slugify(post.Category),
+			}
+			if err := db.Where(model.Category{Name: category.Name}).FirstOrCreate(&category).Error; err != nil {
+				return err
+			}
+		}
+
+		for _, tagName := range post.Tags {
+			if tagName == "" {
+				continue
+			}
+			tag := model.Tag{
+				Name: tagName,
+				Slug: slugify(tagName),
+			}
+			if err := db.Where(model.Tag{Name: tag.Name}).FirstOrCreate(&tag).Error; err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func slugify(value string) string {
+	fields := strings.Fields(strings.ToLower(value))
+	return strings.Trim(strings.Join(fields, "-"), "-")
 }

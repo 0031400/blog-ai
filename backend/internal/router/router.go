@@ -23,6 +23,7 @@ func New(db *gorm.DB) *gin.Engine {
 	})
 
 	postHandler := handler.NewPostHandler(db)
+	taxonomyHandler := handler.NewTaxonomyHandler(db)
 
 	api := r.Group("/api")
 	api.GET("/health", handler.Health)
@@ -32,6 +33,14 @@ func New(db *gorm.DB) *gin.Engine {
 	api.PUT("/posts/:id", postHandler.Update)
 	api.DELETE("/posts/:id", postHandler.Delete)
 	api.PUT("/posts/:id/restore", postHandler.Restore)
+	api.GET("/categories", taxonomyHandler.ListCategories)
+	api.POST("/categories", taxonomyHandler.CreateCategory)
+	api.PUT("/categories/:id", taxonomyHandler.UpdateCategory)
+	api.DELETE("/categories/:id", taxonomyHandler.DeleteCategory)
+	api.GET("/tags", taxonomyHandler.ListTags)
+	api.POST("/tags", taxonomyHandler.CreateTag)
+	api.PUT("/tags/:id", taxonomyHandler.UpdateTag)
+	api.DELETE("/tags/:id", taxonomyHandler.DeleteTag)
 
 	return r
 }

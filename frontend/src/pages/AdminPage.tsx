@@ -1,18 +1,31 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import {
+    type Dispatch,
+    type ReactNode,
+    type SetStateAction,
+    useEffect,
+    useMemo,
+    useState,
+} from "react";
 
 import { formatDate } from "../lib/date";
 import { createHomeHref, createPostHref } from "../lib/hashRoute";
+import type { Category } from "../types/category";
 import type { Post } from "../types/post";
 import type { PostFormValues } from "../types/postForm";
+import type { Tag } from "../types/tag";
 
 type AdminPageProps = {
     apiBaseUrl: string;
+    categories: Category[];
     onPostCreated: (post: Post) => void;
     onPostUpdated: (post: Post) => void;
     posts: Post[];
+    setCategories: Dispatch<SetStateAction<Category[]>>;
+    setTags: Dispatch<SetStateAction<Tag[]>>;
+    tags: Tag[];
 };
 
-type ViewMode = "active" | "recycle";
+type ViewMode = "posts" | "recycle" | "categories" | "tags";
 type StatusFilter = "all" | "draft" | "published";
 type VisibilityFilter = "all" | "public" | "private";
 
@@ -35,22 +48,37 @@ const createInitialValues = (): PostFormValues => ({
 
 export function AdminPage({
     apiBaseUrl,
+    categories,
     onPostCreated,
     onPostUpdated,
     posts,
+    setCategories,
+    setTags,
+    tags,
 }: AdminPageProps) {
     const [values, setValues] = useState<PostFormValues>(createInitialValues);
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<ViewMode>("active");
+    const [viewMode, setViewMode] = useState<ViewMode>("posts");
     const [keyword, setKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
     const [visibilityFilter, setVisibilityFilter] =
         useState<VisibilityFilter>("all");
     const [submitting, setSubmitting] = useState(false);
-    const [deleting, setDeleting] = useState(false);
+    const [busy, setBusy] = useState(false);
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
+
+    const [categoryName, setCategoryName] = useState("");
+    const [categorySlug, setCategorySlug] = useState("");
+    const [editingCategoryId, setEditingCategoryId] = useState<number | null>(
+        null,
+    );
+
+    const [tagName, setTagName] = useState("");
+    const [tagSlug, setTagSlug] = useState("");
+    const [tagColor, setTagColor] = useState("");
+    const [editingTagId, setEditingTagId] = useState<number | null>(null);
 
     const selectedPost = useMemo(
         () => posts.find((post) => post.id === selectedPostId) ?? null,
@@ -60,13 +88,13 @@ export function AdminPage({
         () => values.slug.trim() || "your-post-slug",
         [values.slug],
     );
-    const isEditing = selectedPost !== null;
+    const isEditingPost = selectedPost !== null;
 
     const filteredPosts = useMemo(() => {
         const normalizedKeyword = keyword.trim().toLowerCase();
 
         return posts.filter((post) => {
-            if (viewMode === "active" && post.deleted) return false;
+            if (viewMode === "posts" && post.deleted) return false;
             if (viewMode === "recycle" && !post.deleted) return false;
             if (statusFilter !== "all" && post.status !== statusFilter)
                 return false;
@@ -87,6 +115,25 @@ export function AdminPage({
         });
     }, [keyword, posts, statusFilter, viewMode, visibilityFilter]);
 
+    const categoryUsage = useMemo(() => {
+        const usage = new Map<string, number>();
+        posts.forEach((post) => {
+            if (!post.category) return;
+            usage.set(post.category, (usage.get(post.category) ?? 0) + 1);
+        });
+        return usage;
+    }, [posts]);
+
+    const tagUsage = useMemo(() => {
+        const usage = new Map<string, number>();
+        posts.forEach((post) => {
+            (post.tags ?? []).forEach((tag) => {
+                usage.set(tag, (usage.get(tag) ?? 0) + 1);
+            });
+        });
+        return usage;
+    }, [posts]);
+
     const stats = useMemo(
         () => ({
             total: posts.length,
@@ -103,9 +150,7 @@ export function AdminPage({
 
     useEffect(() => {
         if (!selectedPost && selectedPostId !== null) {
-            setSelectedPostId(null);
-            setValues(createInitialValues());
-            setEditorOpen(false);
+            resetPostForm();
         }
     }, [selectedPost, selectedPostId]);
 
@@ -139,12 +184,24 @@ export function AdminPage({
             });
         };
 
-    const resetForm = () => {
+    const resetPostForm = () => {
         setSelectedPostId(null);
         setValues(createInitialValues());
         setEditorOpen(false);
         setError("");
-        setSuccessMessage("");
+    };
+
+    const resetCategoryForm = () => {
+        setCategoryName("");
+        setCategorySlug("");
+        setEditingCategoryId(null);
+    };
+
+    const resetTagForm = () => {
+        setTagName("");
+        setTagSlug("");
+        setTagColor("");
+        setEditingTagId(null);
     };
 
     const openCreateEditor = () => {
@@ -153,6 +210,7 @@ export function AdminPage({
         setEditorOpen(true);
         setError("");
         setSuccessMessage("");
+        setViewMode("posts");
     };
 
     const openEditEditor = (
@@ -177,13 +235,14 @@ export function AdminPage({
             publishedAt: new Date(post.publishedAt).toISOString().slice(0, 16),
         });
         setEditorOpen(true);
+        setViewMode(post.deleted ? "recycle" : "posts");
         setError("");
         if (!options?.preserveMessage) {
             setSuccessMessage("");
         }
     };
 
-    const buildPayload = () => ({
+    const buildPostPayload = () => ({
         ...values,
         tags: values.tags
             .split(",")
@@ -200,13 +259,13 @@ export function AdminPage({
         setSuccessMessage("");
 
         try {
-            const endpoint = isEditing
+            const endpoint = isEditingPost
                 ? `${apiBaseUrl}/api/posts/${selectedPost.id}`
                 : `${apiBaseUrl}/api/posts`;
             const response = await fetch(endpoint, {
-                method: isEditing ? "PUT" : "POST",
+                method: isEditingPost ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(buildPayload()),
+                body: JSON.stringify(buildPostPayload()),
             });
 
             const payload = (await response.json()) as {
@@ -220,7 +279,7 @@ export function AdminPage({
                 );
             }
 
-            if (isEditing) {
+            if (isEditingPost) {
                 onPostUpdated(payload.data);
                 setSuccessMessage("文章已更新。");
             } else {
@@ -241,12 +300,8 @@ export function AdminPage({
     };
 
     const handleSoftDelete = async (post: Post) => {
-        const confirmed = window.confirm(
-            `确认将《${post.title}》移入回收站吗？`,
-        );
-        if (!confirmed) return;
-
-        setDeleting(true);
+        if (!window.confirm(`确认将《${post.title}》移入回收站吗？`)) return;
+        setBusy(true);
         setError("");
         setSuccessMessage("");
 
@@ -264,10 +319,9 @@ export function AdminPage({
                         `Request failed with status ${response.status}`,
                 );
             }
-
             onPostUpdated(payload.data);
             if (selectedPostId === post.id) {
-                resetForm();
+                resetPostForm();
             }
             setSuccessMessage("文章已移入回收站。");
         } catch (deleteError) {
@@ -277,12 +331,12 @@ export function AdminPage({
                     : "删除失败，请稍后重试。",
             );
         } finally {
-            setDeleting(false);
+            setBusy(false);
         }
     };
 
     const handleRestore = async (post: Post) => {
-        setDeleting(true);
+        setBusy(true);
         setError("");
         setSuccessMessage("");
 
@@ -305,7 +359,6 @@ export function AdminPage({
                         `Request failed with status ${response.status}`,
                 );
             }
-
             onPostUpdated(payload.data);
             setSuccessMessage("文章已恢复。");
         } catch (restoreError) {
@@ -315,7 +368,7 @@ export function AdminPage({
                     : "恢复失败，请稍后重试。",
             );
         } finally {
-            setDeleting(false);
+            setBusy(false);
         }
     };
 
@@ -324,7 +377,7 @@ export function AdminPage({
         patch: Partial<Post>,
         successText: string,
     ) => {
-        setDeleting(true);
+        setBusy(true);
         setError("");
         setSuccessMessage("");
 
@@ -347,7 +400,6 @@ export function AdminPage({
                         `Request failed with status ${response.status}`,
                 );
             }
-
             onPostUpdated(payload.data);
             if (selectedPostId === post.id) {
                 openEditEditor(payload.data, { preserveMessage: true });
@@ -360,7 +412,180 @@ export function AdminPage({
                     : "更新失败，请稍后重试。",
             );
         } finally {
-            setDeleting(false);
+            setBusy(false);
+        }
+    };
+
+    const submitCategory = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setBusy(true);
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            const response = await fetch(
+                editingCategoryId
+                    ? `${apiBaseUrl}/api/categories/${editingCategoryId}`
+                    : `${apiBaseUrl}/api/categories`,
+                {
+                    method: editingCategoryId ? "PUT" : "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: categoryName,
+                        slug: categorySlug || toSlug(categoryName),
+                        description: "",
+                    }),
+                },
+            );
+            const payload = (await response.json()) as {
+                data?: Category;
+                error?: string;
+            };
+            if (!response.ok || !payload.data) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+
+            const nextCategory = payload.data;
+            setCategories((current) =>
+                editingCategoryId
+                    ? current.map((item) =>
+                          item.id === nextCategory.id ? nextCategory : item,
+                      )
+                    : [...current, nextCategory].sort((a, b) =>
+                          a.name.localeCompare(b.name),
+                      ),
+            );
+            setSuccessMessage(
+                editingCategoryId ? "分类已更新。" : "分类已创建。",
+            );
+            resetCategoryForm();
+        } catch (submitError) {
+            setError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : "分类保存失败。",
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const submitTag = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setBusy(true);
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            const response = await fetch(
+                editingTagId
+                    ? `${apiBaseUrl}/api/tags/${editingTagId}`
+                    : `${apiBaseUrl}/api/tags`,
+                {
+                    method: editingTagId ? "PUT" : "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        name: tagName,
+                        slug: tagSlug || toSlug(tagName),
+                        color: tagColor,
+                    }),
+                },
+            );
+            const payload = (await response.json()) as {
+                data?: Tag;
+                error?: string;
+            };
+            if (!response.ok || !payload.data) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+
+            const nextTag = payload.data;
+            setTags((current) =>
+                editingTagId
+                    ? current.map((item) =>
+                          item.id === nextTag.id ? nextTag : item,
+                      )
+                    : [...current, nextTag].sort((a, b) =>
+                          a.name.localeCompare(b.name),
+                      ),
+            );
+            setSuccessMessage(editingTagId ? "标签已更新。" : "标签已创建。");
+            resetTagForm();
+        } catch (submitError) {
+            setError(
+                submitError instanceof Error
+                    ? submitError.message
+                    : "标签保存失败。",
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const deleteCategory = async (category: Category) => {
+        if (!window.confirm(`确认删除分类「${category.name}」吗？`)) return;
+        setBusy(true);
+        setError("");
+        setSuccessMessage("");
+        try {
+            const response = await fetch(
+                `${apiBaseUrl}/api/categories/${category.id}`,
+                { method: "DELETE" },
+            );
+            const payload = (await response.json()) as { error?: string };
+            if (!response.ok) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+            setCategories((current) =>
+                current.filter((item) => item.id !== category.id),
+            );
+            setSuccessMessage("分类已删除。");
+        } catch (deleteError) {
+            setError(
+                deleteError instanceof Error
+                    ? deleteError.message
+                    : "分类删除失败。",
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const deleteTag = async (tag: Tag) => {
+        if (!window.confirm(`确认删除标签「${tag.name}」吗？`)) return;
+        setBusy(true);
+        setError("");
+        setSuccessMessage("");
+        try {
+            const response = await fetch(`${apiBaseUrl}/api/tags/${tag.id}`, {
+                method: "DELETE",
+            });
+            const payload = (await response.json()) as { error?: string };
+            if (!response.ok) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+            setTags((current) => current.filter((item) => item.id !== tag.id));
+            setSuccessMessage("标签已删除。");
+        } catch (deleteError) {
+            setError(
+                deleteError instanceof Error
+                    ? deleteError.message
+                    : "标签删除失败。",
+            );
+        } finally {
+            setBusy(false);
         }
     };
 
@@ -379,40 +604,31 @@ export function AdminPage({
                     </p>
                 </div>
 
-                <div className="px-4">
-                    <div className="flex items-center gap-3 rounded-lg bg-slate-100 px-3 py-2 text-left text-sm text-slate-500">
-                        <span>⌕</span>
-                        <span>内容管理</span>
-                    </div>
-                </div>
-
                 <nav className="mt-4 px-3">
                     <div className="mb-2 px-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
                         Content
                     </div>
-                    <button
-                        type="button"
-                        onClick={() => setViewMode("active")}
-                        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${viewMode === "active" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
-                    >
-                        <span>▣</span>
-                        <span>文章</span>
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setViewMode("recycle")}
-                        className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${viewMode === "recycle" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
-                    >
-                        <span>◌</span>
-                        <span>回收站</span>
-                    </button>
+                    {[
+                        ["posts", "文章"],
+                        ["recycle", "回收站"],
+                        ["categories", "分类"],
+                        ["tags", "标签"],
+                    ].map(([key, label]) => (
+                        <button
+                            key={key}
+                            type="button"
+                            onClick={() => setViewMode(key as ViewMode)}
+                            className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
+                                viewMode === key
+                                    ? "bg-slate-900 text-white"
+                                    : "text-slate-600 hover:bg-slate-100"
+                            }`}
+                        >
+                            <span>▣</span>
+                            <span>{label}</span>
+                        </button>
+                    ))}
                 </nav>
-
-                <div className="mt-auto border-t border-slate-200 p-4">
-                    <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
-                        参考 Halo 的文章内容管理：状态、可见性、标签、回收站。
-                    </div>
-                </div>
             </aside>
 
             <main className="md:ml-64">
@@ -420,10 +636,10 @@ export function AdminPage({
                     <header className="flex flex-col gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center md:justify-between">
                         <div>
                             <div className="text-sm text-slate-500">
-                                Contents / Posts
+                                Contents / Management
                             </div>
                             <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.04em] text-slate-900">
-                                {viewMode === "active" ? "文章管理" : "回收站"}
+                                {viewTitle(viewMode)}
                             </h1>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -488,33 +704,21 @@ export function AdminPage({
                             <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 md:flex-row md:items-start md:justify-between">
                                 <div>
                                     <div className="text-sm font-medium text-slate-900">
-                                        {isEditing ? "编辑文章" : "新建文章"}
+                                        {isEditingPost
+                                            ? "编辑文章"
+                                            : "新建文章"}
                                     </div>
                                     <div className="mt-1 text-sm text-slate-500">
                                         Slug 预览：`/#/posts/{slugPreview}`
                                     </div>
                                 </div>
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        type="button"
-                                        onClick={resetForm}
-                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
-                                    >
-                                        关闭编辑器
-                                    </button>
-                                    {isEditing && !selectedPost.deleted ? (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                handleSoftDelete(selectedPost)
-                                            }
-                                            disabled={submitting || deleting}
-                                            className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60"
-                                        >
-                                            移入回收站
-                                        </button>
-                                    ) : null}
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={resetPostForm}
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                                >
+                                    关闭编辑器
+                                </button>
                             </div>
 
                             <form
@@ -574,20 +778,38 @@ export function AdminPage({
 
                                 <div className="grid gap-4 md:grid-cols-4">
                                     <Field label="分类">
-                                        <input
+                                        <select
                                             value={values.category}
                                             onChange={handleChange("category")}
-                                            required
                                             className={inputClass}
-                                        />
+                                        >
+                                            <option value="">选择分类</option>
+                                            {categories.map((category) => (
+                                                <option
+                                                    key={category.id}
+                                                    value={category.name}
+                                                >
+                                                    {category.name}
+                                                </option>
+                                            ))}
+                                        </select>
                                     </Field>
                                     <Field label="标签">
                                         <input
                                             value={values.tags}
                                             onChange={handleChange("tags")}
+                                            list="tag-options"
                                             placeholder="React, Go, 设计"
                                             className={inputClass}
                                         />
+                                        <datalist id="tag-options">
+                                            {tags.map((tag) => (
+                                                <option
+                                                    key={tag.id}
+                                                    value={tag.name}
+                                                />
+                                            ))}
+                                        </datalist>
                                     </Field>
                                     <Field label="阅读时长">
                                         <input
@@ -667,245 +889,563 @@ export function AdminPage({
                                 <div className="flex flex-wrap gap-2">
                                     <button
                                         type="submit"
-                                        disabled={submitting || deleting}
+                                        disabled={submitting || busy}
                                         className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
                                     >
                                         {submitting
                                             ? "提交中..."
-                                            : isEditing
+                                            : isEditingPost
                                               ? "保存修改"
                                               : "创建文章"}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={resetForm}
-                                        disabled={submitting || deleting}
-                                        className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 disabled:opacity-60"
-                                    >
-                                        重置
-                                    </button>
+                                    {isEditingPost && !selectedPost?.deleted ? (
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                selectedPost &&
+                                                handleSoftDelete(selectedPost)
+                                            }
+                                            disabled={busy}
+                                            className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600 disabled:opacity-60"
+                                        >
+                                            移入回收站
+                                        </button>
+                                    ) : null}
                                 </div>
                             </form>
                         </section>
                     ) : null}
 
-                    <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                                <div className="text-sm font-medium text-slate-900">
-                                    文章列表
-                                </div>
-                                <div className="mt-1 text-sm text-slate-500">
-                                    支持草稿/发布、可见性、标签和回收站筛选。
-                                </div>
-                            </div>
-                            <div className="grid gap-2 md:grid-cols-2 lg:flex">
-                                <input
-                                    value={keyword}
-                                    onChange={(event) =>
-                                        setKeyword(event.target.value)
-                                    }
-                                    placeholder="搜索标题、分类、slug、标签"
-                                    className={`${inputClass} min-w-[240px]`}
-                                />
-                                <select
-                                    value={statusFilter}
-                                    onChange={(event) =>
-                                        setStatusFilter(
-                                            event.target.value as StatusFilter,
-                                        )
-                                    }
-                                    className={inputClass}
-                                >
-                                    <option value="all">全部状态</option>
-                                    <option value="published">已发布</option>
-                                    <option value="draft">草稿</option>
-                                </select>
-                                <select
-                                    value={visibilityFilter}
-                                    onChange={(event) =>
-                                        setVisibilityFilter(
-                                            event.target
-                                                .value as VisibilityFilter,
-                                        )
-                                    }
-                                    className={inputClass}
-                                >
-                                    <option value="all">全部可见性</option>
-                                    <option value="public">公开</option>
-                                    <option value="private">私密</option>
-                                </select>
-                            </div>
-                        </div>
+                    {(viewMode === "posts" || viewMode === "recycle") && (
+                        <PostsSection
+                            busy={busy}
+                            filteredPosts={filteredPosts}
+                            formatPostDate={formatDate}
+                            handleRestore={handleRestore}
+                            handleSoftDelete={handleSoftDelete}
+                            keyword={keyword}
+                            openEditEditor={openEditEditor}
+                            quickUpdatePost={quickUpdatePost}
+                            setKeyword={setKeyword}
+                            setStatusFilter={setStatusFilter}
+                            setVisibilityFilter={setVisibilityFilter}
+                            statusFilter={statusFilter}
+                            viewMode={viewMode}
+                            visibilityFilter={visibilityFilter}
+                        />
+                    )}
 
-                        <div className="divide-y divide-slate-100">
-                            {filteredPosts.map((post) => (
-                                <article key={post.id} className="px-4 py-4">
-                                    <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                                        <div className="flex min-w-0 gap-3">
-                                            <img
-                                                src={post.coverImage}
-                                                alt={post.title}
-                                                className="h-20 w-20 rounded-lg object-cover"
-                                            />
-                                            <div className="min-w-0">
-                                                <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                                                    <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-slate-600">
-                                                        {post.category}
-                                                    </span>
-                                                    <span
-                                                        className={`rounded-full px-2 py-1 normal-case tracking-normal ${post.status === "published" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
-                                                    >
-                                                        {post.status ===
-                                                        "published"
-                                                            ? "已发布"
-                                                            : "草稿"}
-                                                    </span>
-                                                    <span
-                                                        className={`rounded-full px-2 py-1 normal-case tracking-normal ${post.visibility === "public" ? "bg-sky-50 text-sky-700" : "bg-slate-100 text-slate-700"}`}
-                                                    >
-                                                        {post.visibility ===
-                                                        "public"
-                                                            ? "公开"
-                                                            : "私密"}
-                                                    </span>
-                                                    {post.pinned ? (
-                                                        <span className="rounded-full bg-rose-50 px-2 py-1 normal-case tracking-normal text-rose-700">
-                                                            置顶
-                                                        </span>
-                                                    ) : null}
-                                                    <span>
-                                                        {formatDate(
-                                                            post.publishedAt,
-                                                        )}
-                                                    </span>
-                                                </div>
-                                                <h2 className="mt-2 truncate text-base font-semibold text-slate-900">
-                                                    {post.title}
-                                                </h2>
-                                                <p className="mt-1 text-sm leading-6 text-slate-500">
-                                                    {post.excerpt}
-                                                </p>
-                                                {(post.tags ?? []).length ? (
-                                                    <div className="mt-2 flex flex-wrap gap-2">
-                                                        {(post.tags ?? []).map(
-                                                            (tag) => (
-                                                                <span
-                                                                    key={`${post.id}-${tag}`}
-                                                                    className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
-                                                                >
-                                                                    #{tag}
-                                                                </span>
-                                                            ),
-                                                        )}
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                        </div>
+                    {viewMode === "categories" && (
+                        <section className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+                            <TaxonomyFormCard
+                                title={
+                                    editingCategoryId ? "编辑分类" : "新建分类"
+                                }
+                            >
+                                <form
+                                    onSubmit={submitCategory}
+                                    className="space-y-4"
+                                >
+                                    <Field label="名称">
+                                        <input
+                                            value={categoryName}
+                                            onChange={(event) =>
+                                                setCategoryName(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className={inputClass}
+                                            required
+                                        />
+                                    </Field>
+                                    <Field label="Slug">
+                                        <input
+                                            value={categorySlug}
+                                            onChange={(event) =>
+                                                setCategorySlug(
+                                                    event.target.value,
+                                                )
+                                            }
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="submit"
+                                            disabled={busy}
+                                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
+                                        >
+                                            保存
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={resetCategoryForm}
+                                            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600"
+                                        >
+                                            重置
+                                        </button>
+                                    </div>
+                                </form>
+                            </TaxonomyFormCard>
 
-                                        <div className="flex flex-wrap gap-2">
-                                            {!post.deleted ? (
-                                                <>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            openEditEditor(post)
-                                                        }
-                                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
-                                                    >
-                                                        编辑
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            quickUpdatePost(
-                                                                post,
-                                                                {
-                                                                    status:
-                                                                        post.status ===
-                                                                        "published"
-                                                                            ? "draft"
-                                                                            : "published",
-                                                                },
-                                                                post.status ===
-                                                                    "published"
-                                                                    ? "已转为草稿。"
-                                                                    : "已发布。",
-                                                            )
-                                                        }
-                                                        disabled={deleting}
-                                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 disabled:opacity-60"
-                                                    >
-                                                        {post.status ===
-                                                        "published"
-                                                            ? "转为草稿"
-                                                            : "发布"}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            quickUpdatePost(
-                                                                post,
-                                                                {
-                                                                    visibility:
-                                                                        post.visibility ===
-                                                                        "public"
-                                                                            ? "private"
-                                                                            : "public",
-                                                                },
-                                                                post.visibility ===
-                                                                    "public"
-                                                                    ? "已设为私密。"
-                                                                    : "已设为公开。",
-                                                            )
-                                                        }
-                                                        disabled={deleting}
-                                                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 disabled:opacity-60"
-                                                    >
-                                                        {post.visibility ===
-                                                        "public"
-                                                            ? "设为私密"
-                                                            : "设为公开"}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() =>
-                                                            handleSoftDelete(
-                                                                post,
-                                                            )
-                                                        }
-                                                        disabled={deleting}
-                                                        className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60"
-                                                    >
-                                                        回收
-                                                    </button>
-                                                </>
-                                            ) : (
+                            <TaxonomyListCard title="分类列表">
+                                {categories.map((category) => (
+                                    <TaxonomyRow
+                                        key={category.id}
+                                        actions={
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditingCategoryId(
+                                                            category.id,
+                                                        );
+                                                        setCategoryName(
+                                                            category.name,
+                                                        );
+                                                        setCategorySlug(
+                                                            category.slug,
+                                                        );
+                                                    }}
+                                                    className={
+                                                        secondaryButtonClass
+                                                    }
+                                                >
+                                                    编辑
+                                                </button>
                                                 <button
                                                     type="button"
                                                     onClick={() =>
-                                                        handleRestore(post)
+                                                        deleteCategory(category)
                                                     }
-                                                    disabled={deleting}
-                                                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
+                                                    className={
+                                                        dangerButtonClass
+                                                    }
                                                 >
-                                                    恢复
+                                                    删除
                                                 </button>
-                                            )}
-                                        </div>
-                                    </div>
-                                </article>
-                            ))}
+                                            </>
+                                        }
+                                        meta={`使用文章 ${
+                                            categoryUsage.get(category.name) ??
+                                            0
+                                        } 篇`}
+                                        title={category.name}
+                                    />
+                                ))}
+                            </TaxonomyListCard>
+                        </section>
+                    )}
 
-                            {filteredPosts.length === 0 ? (
-                                <div className="px-4 py-8 text-center text-sm text-slate-500">
-                                    没有匹配的文章。
-                                </div>
-                            ) : null}
-                        </div>
-                    </section>
+                    {viewMode === "tags" && (
+                        <section className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+                            <TaxonomyFormCard
+                                title={editingTagId ? "编辑标签" : "新建标签"}
+                            >
+                                <form
+                                    onSubmit={submitTag}
+                                    className="space-y-4"
+                                >
+                                    <Field label="名称">
+                                        <input
+                                            value={tagName}
+                                            onChange={(event) =>
+                                                setTagName(event.target.value)
+                                            }
+                                            className={inputClass}
+                                            required
+                                        />
+                                    </Field>
+                                    <Field label="Slug">
+                                        <input
+                                            value={tagSlug}
+                                            onChange={(event) =>
+                                                setTagSlug(event.target.value)
+                                            }
+                                            className={inputClass}
+                                        />
+                                    </Field>
+                                    <Field label="颜色">
+                                        <input
+                                            value={tagColor}
+                                            onChange={(event) =>
+                                                setTagColor(event.target.value)
+                                            }
+                                            className={inputClass}
+                                            placeholder="#0f172a"
+                                        />
+                                    </Field>
+                                    <div className="flex gap-2">
+                                        <button
+                                            type="submit"
+                                            disabled={busy}
+                                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
+                                        >
+                                            保存
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={resetTagForm}
+                                            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600"
+                                        >
+                                            重置
+                                        </button>
+                                    </div>
+                                </form>
+                            </TaxonomyFormCard>
+
+                            <TaxonomyListCard title="标签列表">
+                                {tags.map((tag) => (
+                                    <TaxonomyRow
+                                        key={tag.id}
+                                        actions={
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditingTagId(tag.id);
+                                                        setTagName(tag.name);
+                                                        setTagSlug(tag.slug);
+                                                        setTagColor(tag.color);
+                                                    }}
+                                                    className={
+                                                        secondaryButtonClass
+                                                    }
+                                                >
+                                                    编辑
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        deleteTag(tag)
+                                                    }
+                                                    className={
+                                                        dangerButtonClass
+                                                    }
+                                                >
+                                                    删除
+                                                </button>
+                                            </>
+                                        }
+                                        meta={`使用文章 ${
+                                            tagUsage.get(tag.name) ?? 0
+                                        } 篇`}
+                                        swatch={tag.color}
+                                        title={tag.name}
+                                    />
+                                ))}
+                            </TaxonomyListCard>
+                        </section>
+                    )}
                 </div>
             </main>
+        </div>
+    );
+}
+
+function PostsSection({
+    busy,
+    filteredPosts,
+    formatPostDate,
+    handleRestore,
+    handleSoftDelete,
+    keyword,
+    openEditEditor,
+    quickUpdatePost,
+    setKeyword,
+    setStatusFilter,
+    setVisibilityFilter,
+    statusFilter,
+    viewMode,
+    visibilityFilter,
+}: {
+    busy: boolean;
+    filteredPosts: Post[];
+    formatPostDate: (value: string) => string;
+    handleRestore: (post: Post) => Promise<void>;
+    handleSoftDelete: (post: Post) => Promise<void>;
+    keyword: string;
+    openEditEditor: (post: Post) => void;
+    quickUpdatePost: (
+        post: Post,
+        patch: Partial<Post>,
+        successText: string,
+    ) => Promise<void>;
+    setKeyword: Dispatch<SetStateAction<string>>;
+    setStatusFilter: Dispatch<SetStateAction<StatusFilter>>;
+    setVisibilityFilter: Dispatch<SetStateAction<VisibilityFilter>>;
+    statusFilter: StatusFilter;
+    viewMode: ViewMode;
+    visibilityFilter: VisibilityFilter;
+}) {
+    return (
+        <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <div className="text-sm font-medium text-slate-900">
+                        文章列表
+                    </div>
+                    <div className="mt-1 text-sm text-slate-500">
+                        支持草稿/发布、可见性、标签和回收站筛选。
+                    </div>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2 lg:flex">
+                    <input
+                        value={keyword}
+                        onChange={(event) => setKeyword(event.target.value)}
+                        placeholder="搜索标题、分类、slug、标签"
+                        className={`${inputClass} min-w-[240px]`}
+                    />
+                    <select
+                        value={statusFilter}
+                        onChange={(event) =>
+                            setStatusFilter(event.target.value as StatusFilter)
+                        }
+                        className={inputClass}
+                    >
+                        <option value="all">全部状态</option>
+                        <option value="published">已发布</option>
+                        <option value="draft">草稿</option>
+                    </select>
+                    <select
+                        value={visibilityFilter}
+                        onChange={(event) =>
+                            setVisibilityFilter(
+                                event.target.value as VisibilityFilter,
+                            )
+                        }
+                        className={inputClass}
+                    >
+                        <option value="all">全部可见性</option>
+                        <option value="public">公开</option>
+                        <option value="private">私密</option>
+                    </select>
+                </div>
+            </div>
+
+            <div className="divide-y divide-slate-100">
+                {filteredPosts.map((post) => (
+                    <article key={post.id} className="px-4 py-4">
+                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                            <div className="flex min-w-0 gap-3">
+                                <img
+                                    src={post.coverImage}
+                                    alt={post.title}
+                                    className="h-20 w-20 rounded-lg object-cover"
+                                />
+                                <div className="min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
+                                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-slate-600">
+                                            {post.category}
+                                        </span>
+                                        <span
+                                            className={`rounded-full px-2 py-1 normal-case tracking-normal ${
+                                                post.status === "published"
+                                                    ? "bg-emerald-50 text-emerald-700"
+                                                    : "bg-amber-50 text-amber-700"
+                                            }`}
+                                        >
+                                            {post.status === "published"
+                                                ? "已发布"
+                                                : "草稿"}
+                                        </span>
+                                        <span
+                                            className={`rounded-full px-2 py-1 normal-case tracking-normal ${
+                                                post.visibility === "public"
+                                                    ? "bg-sky-50 text-sky-700"
+                                                    : "bg-slate-100 text-slate-700"
+                                            }`}
+                                        >
+                                            {post.visibility === "public"
+                                                ? "公开"
+                                                : "私密"}
+                                        </span>
+                                        {post.pinned ? (
+                                            <span className="rounded-full bg-rose-50 px-2 py-1 normal-case tracking-normal text-rose-700">
+                                                置顶
+                                            </span>
+                                        ) : null}
+                                        <span>
+                                            {formatPostDate(post.publishedAt)}
+                                        </span>
+                                    </div>
+                                    <h2 className="mt-2 truncate text-base font-semibold text-slate-900">
+                                        {post.title}
+                                    </h2>
+                                    <p className="mt-1 text-sm leading-6 text-slate-500">
+                                        {post.excerpt}
+                                    </p>
+                                    {(post.tags ?? []).length ? (
+                                        <div className="mt-2 flex flex-wrap gap-2">
+                                            {(post.tags ?? []).map((tag) => (
+                                                <span
+                                                    key={`${post.id}-${tag}`}
+                                                    className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
+                                                >
+                                                    #{tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                                {!post.deleted ? (
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => openEditEditor(post)}
+                                            className={secondaryButtonClass}
+                                        >
+                                            编辑
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                quickUpdatePost(
+                                                    post,
+                                                    {
+                                                        status:
+                                                            post.status ===
+                                                            "published"
+                                                                ? "draft"
+                                                                : "published",
+                                                    },
+                                                    post.status === "published"
+                                                        ? "已转为草稿。"
+                                                        : "已发布。",
+                                                )
+                                            }
+                                            disabled={busy}
+                                            className={secondaryButtonClass}
+                                        >
+                                            {post.status === "published"
+                                                ? "转为草稿"
+                                                : "发布"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                quickUpdatePost(
+                                                    post,
+                                                    {
+                                                        visibility:
+                                                            post.visibility ===
+                                                            "public"
+                                                                ? "private"
+                                                                : "public",
+                                                    },
+                                                    post.visibility === "public"
+                                                        ? "已设为私密。"
+                                                        : "已设为公开。",
+                                                )
+                                            }
+                                            disabled={busy}
+                                            className={secondaryButtonClass}
+                                        >
+                                            {post.visibility === "public"
+                                                ? "设为私密"
+                                                : "设为公开"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleSoftDelete(post)
+                                            }
+                                            disabled={busy}
+                                            className={dangerButtonClass}
+                                        >
+                                            回收
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={() => handleRestore(post)}
+                                        disabled={busy}
+                                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
+                                    >
+                                        恢复
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </article>
+                ))}
+
+                {filteredPosts.length === 0 ? (
+                    <div className="px-4 py-8 text-center text-sm text-slate-500">
+                        {viewMode === "recycle"
+                            ? "回收站为空。"
+                            : "没有匹配的文章。"}
+                    </div>
+                ) : null}
+            </div>
+        </section>
+    );
+}
+
+function TaxonomyFormCard({
+    children,
+    title,
+}: {
+    children: ReactNode;
+    title: string;
+}) {
+    return (
+        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+            <div className="mt-4">{children}</div>
+        </section>
+    );
+}
+
+function TaxonomyListCard({
+    children,
+    title,
+}: {
+    children: ReactNode;
+    title: string;
+}) {
+    return (
+        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-200 px-4 py-4 text-base font-semibold text-slate-900">
+                {title}
+            </div>
+            <div className="divide-y divide-slate-100">{children}</div>
+        </section>
+    );
+}
+
+function TaxonomyRow({
+    actions,
+    meta,
+    swatch,
+    title,
+}: {
+    actions: ReactNode;
+    meta: string;
+    swatch?: string;
+    title: string;
+}) {
+    return (
+        <div className="flex flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3">
+                {swatch ? (
+                    <span
+                        className="h-4 w-4 rounded-full border border-slate-200"
+                        style={{ backgroundColor: swatch }}
+                    />
+                ) : null}
+                <div>
+                    <div className="text-sm font-medium text-slate-900">
+                        {title}
+                    </div>
+                    <div className="mt-1 text-sm text-slate-500">{meta}</div>
+                </div>
+            </div>
+            <div className="flex flex-wrap gap-2">{actions}</div>
         </div>
     );
 }
@@ -921,8 +1461,27 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
     );
 }
 
+function viewTitle(viewMode: ViewMode) {
+    switch (viewMode) {
+        case "posts":
+            return "文章管理";
+        case "recycle":
+            return "回收站";
+        case "categories":
+            return "分类管理";
+        case "tags":
+            return "标签管理";
+    }
+}
+
 const inputClass =
     "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100";
+
+const secondaryButtonClass =
+    "rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 disabled:opacity-60";
+
+const dangerButtonClass =
+    "rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60";
 
 function toSlug(value: string) {
     return value
