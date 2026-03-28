@@ -69,6 +69,7 @@ function formatAdminError(error: unknown, fallback: string) {
 }
 
 export function AdminPage({ apiBaseUrl }: AdminPageProps) {
+    const postsPerPage = 20;
     const location = useLocation();
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
@@ -78,6 +79,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const [values, setValues] = useState<PostFormValues>(createInitialValues);
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
     const [selectedPostIds, setSelectedPostIds] = useState<number[]>([]);
+    const [postsPage, setPostsPage] = useState(1);
     const [keyword, setKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
     const [submitting, setSubmitting] = useState(false);
@@ -189,12 +191,36 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         () => filteredPosts.filter((post) => !post.deleted),
         [filteredPosts],
     );
+    const postsTotalPages = useMemo(
+        () => Math.max(1, Math.ceil(filteredPosts.length / postsPerPage)),
+        [filteredPosts.length, postsPerPage],
+    );
+    const paginatedPosts = useMemo(() => {
+        const start = (postsPage - 1) * postsPerPage;
+        return filteredPosts.slice(start, start + postsPerPage);
+    }, [filteredPosts, postsPage, postsPerPage]);
+    const selectablePagePosts = useMemo(
+        () => paginatedPosts.filter((post) => !post.deleted),
+        [paginatedPosts],
+    );
     const allSelected = useMemo(
         () =>
-            selectablePosts.length > 0 &&
-            selectablePosts.every((post) => selectedPostIds.includes(post.id)),
-        [selectablePosts, selectedPostIds],
+            selectablePagePosts.length > 0 &&
+            selectablePagePosts.every((post) =>
+                selectedPostIds.includes(post.id),
+            ),
+        [selectablePagePosts, selectedPostIds],
     );
+
+    useEffect(() => {
+        setPostsPage(1);
+    }, [activeViewMode, keyword, statusFilter]);
+
+    useEffect(() => {
+        if (postsPage > postsTotalPages) {
+            setPostsPage(postsTotalPages);
+        }
+    }, [postsPage, postsTotalPages]);
 
     const adminFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         const response = await fetch(input, {
@@ -847,7 +873,19 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
 
     const toggleAllPosts = () => {
         setSelectedPostIds(
-            allSelected ? [] : selectablePosts.map((post) => post.id),
+            allSelected
+                ? selectedPostIds.filter(
+                      (postId) =>
+                          !selectablePagePosts.some(
+                              (post) => post.id === postId,
+                          ),
+                  )
+                : [
+                      ...new Set([
+                          ...selectedPostIds,
+                          ...selectablePagePosts.map((post) => post.id),
+                      ]),
+                  ],
         );
     };
 
@@ -1217,16 +1255,21 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                         batchRecycle={batchRecycle}
                                         batchToDraft={batchToDraft}
                                         busy={busy}
-                                        filteredPosts={filteredPosts}
+                                        currentPage={postsPage}
+                                        filteredPosts={paginatedPosts}
                                         handleRestore={handleRestore}
                                         handleSoftDelete={handleSoftDelete}
                                         keyword={keyword}
+                                        onPageChange={setPostsPage}
                                         openEditEditor={openEditEditor}
+                                        postsPerPage={postsPerPage}
                                         quickUpdatePost={quickUpdatePost}
                                         selectedPostIds={selectedPostIds}
                                         setKeyword={setKeyword}
                                         setStatusFilter={setStatusFilter}
                                         statusFilter={statusFilter}
+                                        totalItems={filteredPosts.length}
+                                        totalPages={postsTotalPages}
                                         toggleAll={toggleAllPosts}
                                         togglePostSelection={
                                             togglePostSelection
