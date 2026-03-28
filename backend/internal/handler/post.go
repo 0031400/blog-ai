@@ -459,8 +459,6 @@ func buildPost(req createPostRequest) (postInput, error) {
 		return postInput{}, errors.New("excerpt is required")
 	case content == "":
 		return postInput{}, errors.New("content is required")
-	case coverImage == "":
-		return postInput{}, errors.New("cover image is required")
 	case req.CategoryID == 0:
 		return postInput{}, errors.New("categoryId is required")
 	case req.ReadingTime <= 0:

@@ -3,6 +3,9 @@ export const siteMeta = {
     heroImage:
         import.meta.env.VITE_SITE_HERO_IMAGE ??
         "https://images.unsplash.com/photo-1579546929518-9e396f3cc809?auto=format&fit=crop&w=2000&q=80",
+    defaultCoverImage:
+        import.meta.env.VITE_SITE_DEFAULT_COVER_IMAGE ??
+        "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80",
     author: {
         name: import.meta.env.VITE_SITE_AUTHOR_NAME ?? "lxz07",
         tagline:

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 
 import { formatDate } from "../../lib/date";
+import { getPostCoverImage } from "../../lib/postCover.ts";
 import { createPostPath } from "../../lib/routes.ts";
 import type { Post } from "../../types/post.ts";
 
@@ -51,7 +52,7 @@ export function PostListCard({ post }: PostListCardProps) {
 
                 <div className="relative mx-1 -mb-1 mt-1 overflow-hidden rounded-2xl bg-slate-100 md:mx-0 md:mb-0 md:mt-0 md:my-3">
                     <img
-                        src={post.coverImage}
+                        src={getPostCoverImage(post.coverImage)}
                         alt={post.title}
                         className="max-h-[20vh] w-full object-cover md:h-full md:max-h-none"
                     />
