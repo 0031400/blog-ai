@@ -1,3 +1,6 @@
+import type { Category } from "./category";
+import type { Tag } from "./tag";
+
 export type Post = {
     id: number;
     title: string;
@@ -5,8 +8,10 @@ export type Post = {
     excerpt: string;
     content: string;
     coverImage: string;
-    category: string;
-    tags: string[];
+    categoryId: number;
+    category: Category | null;
+    tagIds: number[];
+    tags: Tag[];
     readingTime: number;
     status: "draft" | "published";
     visibility: "public" | "private";
@@ -14,4 +19,6 @@ export type Post = {
     allowComment: boolean;
     deleted: boolean;
     publishedAt: string;
+    createdAt?: string;
+    updatedAt?: string;
 };

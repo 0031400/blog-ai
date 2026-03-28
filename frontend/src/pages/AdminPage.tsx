@@ -35,8 +35,8 @@ const createInitialValues = (): PostFormValues => ({
     excerpt: "",
     content: "",
     coverImage: "",
-    category: "",
-    tags: [],
+    categoryId: "",
+    tagIds: [],
     readingTime: "5",
     status: "draft",
     visibility: "public",
@@ -108,9 +108,9 @@ export function AdminPage({
             return [
                 post.title,
                 post.excerpt,
-                post.category,
+                post.category?.name ?? "",
                 post.slug,
-                (post.tags ?? []).join(" "),
+                (post.tags ?? []).map((tag) => tag.name).join(" "),
             ].some((value) => value.toLowerCase().includes(normalizedKeyword));
         });
     }, [keyword, posts, statusFilter, viewMode, visibilityFilter]);
@@ -118,8 +118,9 @@ export function AdminPage({
     const categoryUsage = useMemo(() => {
         const usage = new Map<string, number>();
         posts.forEach((post) => {
-            if (!post.category) return;
-            usage.set(post.category, (usage.get(post.category) ?? 0) + 1);
+            const categoryName = post.category?.name;
+            if (!categoryName) return;
+            usage.set(categoryName, (usage.get(categoryName) ?? 0) + 1);
         });
         return usage;
     }, [posts]);
@@ -128,7 +129,7 @@ export function AdminPage({
         const usage = new Map<string, number>();
         posts.forEach((post) => {
             (post.tags ?? []).forEach((tag) => {
-                usage.set(tag, (usage.get(tag) ?? 0) + 1);
+                usage.set(tag.name, (usage.get(tag.name) ?? 0) + 1);
             });
         });
         return usage;
@@ -224,8 +225,8 @@ export function AdminPage({
             excerpt: post.excerpt,
             content: post.content,
             coverImage: post.coverImage,
-            category: post.category,
-            tags: [...(post.tags ?? [])],
+            categoryId: String(post.categoryId),
+            tagIds: [...(post.tagIds ?? [])],
             readingTime: String(post.readingTime),
             status: post.status,
             visibility: post.visibility,
@@ -243,18 +244,54 @@ export function AdminPage({
     };
 
     const buildPostPayload = () => ({
-        ...values,
-        tags: values.tags,
+        title: values.title,
+        slug: values.slug,
+        excerpt: values.excerpt,
+        content: values.content,
+        coverImage: values.coverImage,
+        categoryId: Number(values.categoryId),
+        tagIds: values.tagIds,
         readingTime: Number(values.readingTime),
+        status: values.status,
+        visibility: values.visibility,
+        pinned: values.pinned,
+        allowComment: values.allowComment,
+        deleted: values.deleted,
         publishedAt: new Date(values.publishedAt).toISOString(),
     });
 
-    const toggleTagSelection = (tagName: string) => {
+    const buildPostPayloadFromPost = (
+        post: Post,
+        patch: Partial<Post> = {},
+    ) => {
+        const nextPost = { ...post, ...patch };
+
+        return {
+            title: nextPost.title,
+            slug: nextPost.slug,
+            excerpt: nextPost.excerpt,
+            content: nextPost.content,
+            coverImage: nextPost.coverImage,
+            categoryId: nextPost.categoryId,
+            tagIds: nextPost.tagIds,
+            readingTime: nextPost.readingTime,
+            status: nextPost.status,
+            visibility: nextPost.visibility,
+            pinned: nextPost.pinned,
+            allowComment: nextPost.allowComment,
+            deleted: nextPost.deleted,
+            publishedAt: new Date(nextPost.publishedAt).toISOString(),
+        };
+    };
+
+    const toggleTagSelection = (tagId: number) => {
         setValues((currentValues) => ({
             ...currentValues,
-            tags: currentValues.tags.includes(tagName)
-                ? currentValues.tags.filter((tag) => tag !== tagName)
-                : [...currentValues.tags, tagName],
+            tagIds: currentValues.tagIds.includes(tagId)
+                ? currentValues.tagIds.filter(
+                      (currentTagId) => currentTagId !== tagId,
+                  )
+                : [...currentValues.tagIds, tagId],
         }));
     };
 
@@ -391,10 +428,7 @@ export function AdminPage({
             const response = await fetch(`${apiBaseUrl}/api/posts/${post.id}`, {
                 method: "PUT",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    ...post,
-                    ...patch,
-                }),
+                body: JSON.stringify(buildPostPayloadFromPost(post, patch)),
             });
             const payload = (await response.json()) as {
                 data?: Post;
@@ -785,15 +819,17 @@ export function AdminPage({
                                 <div className="grid gap-4 md:grid-cols-4">
                                     <Field label="分类">
                                         <select
-                                            value={values.category}
-                                            onChange={handleChange("category")}
+                                            value={values.categoryId}
+                                            onChange={handleChange(
+                                                "categoryId",
+                                            )}
                                             className={inputClass}
                                         >
                                             <option value="">选择分类</option>
                                             {categories.map((category) => (
                                                 <option
                                                     key={category.id}
-                                                    value={category.name}
+                                                    value={category.id}
                                                 >
                                                     {category.name}
                                                 </option>
@@ -806,8 +842,8 @@ export function AdminPage({
                                                 <div className="flex flex-wrap gap-2">
                                                     {tags.map((tag) => {
                                                         const selected =
-                                                            values.tags.includes(
-                                                                tag.name,
+                                                            values.tagIds.includes(
+                                                                tag.id,
                                                             );
 
                                                         return (
@@ -816,7 +852,7 @@ export function AdminPage({
                                                                 type="button"
                                                                 onClick={() =>
                                                                     toggleTagSelection(
-                                                                        tag.name,
+                                                                        tag.id,
                                                                     )
                                                                 }
                                                                 className={`rounded-full border px-3 py-1.5 text-sm transition ${
@@ -1262,7 +1298,7 @@ function PostsSection({
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
                                         <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-slate-600">
-                                            {post.category}
+                                            {post.category?.name ?? "未分类"}
                                         </span>
                                         <span
                                             className={`rounded-full px-2 py-1 normal-case tracking-normal ${
@@ -1305,10 +1341,10 @@ function PostsSection({
                                         <div className="mt-2 flex flex-wrap gap-2">
                                             {(post.tags ?? []).map((tag) => (
                                                 <span
-                                                    key={`${post.id}-${tag}`}
+                                                    key={`${post.id}-${tag.id}`}
                                                     className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
                                                 >
-                                                    #{tag}
+                                                    #{tag.name}
                                                 </span>
                                             ))}
                                         </div>

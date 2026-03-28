@@ -29,5 +29,5 @@ func New(databasePath string) (*gorm.DB, error) {
 }
 
 func migrate(db *gorm.DB) error {
-	return db.AutoMigrate(&model.Post{}, &model.Category{}, &model.Tag{})
+	return db.AutoMigrate(&model.Category{}, &model.Tag{}, &model.Post{})
 }

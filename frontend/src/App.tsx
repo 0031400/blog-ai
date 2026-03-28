@@ -12,9 +12,16 @@ import type { Tag } from "./types/tag";
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
 function normalizePost(post: Post): Post {
+    const normalizedTags = Array.isArray(post.tags) ? post.tags : [];
+
     return {
         ...post,
-        tags: Array.isArray(post.tags) ? post.tags : [],
+        categoryId: Number(post.categoryId ?? post.category?.id ?? 0),
+        category: post.category ?? null,
+        tagIds: Array.isArray(post.tagIds)
+            ? post.tagIds
+            : normalizedTags.map((tag) => tag.id),
+        tags: normalizedTags,
         status: post.status ?? "draft",
         visibility: post.visibility ?? "public",
         pinned: Boolean(post.pinned),

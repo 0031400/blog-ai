@@ -10,8 +10,9 @@ type Post struct {
 	Excerpt      string    `gorm:"size:320;not null" json:"excerpt"`
 	Content      string    `gorm:"type:text;not null" json:"content"`
 	CoverImage   string    `gorm:"size:500;not null" json:"coverImage"`
-	Category     string    `gorm:"size:80;not null" json:"category"`
-	Tags         []string  `gorm:"serializer:json" json:"tags"`
+	CategoryID   uint      `gorm:"index" json:"categoryId"`
+	Category     Category  `json:"category"`
+	Tags         []Tag     `gorm:"many2many:post_tags;" json:"tags"`
 	ReadingTime  int       `gorm:"not null" json:"readingTime"`
 	Status       string    `gorm:"size:20;not null;default:draft;index" json:"status"`
 	Visibility   string    `gorm:"size:20;not null;default:public;index" json:"visibility"`

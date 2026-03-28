@@ -78,40 +78,30 @@ func (h TaxonomyHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.Transaction(func(tx *gorm.DB) error {
-		var category model.Category
-		if err := tx.First(&category, c.Param("id")).Error; err != nil {
-			return err
-		}
-
-		previousName := category.Name
-		category.Name = nextCategory.Name
-		category.Slug = nextCategory.Slug
-		category.Description = nextCategory.Description
-
-		if err := tx.Save(&category).Error; err != nil {
-			return err
-		}
-
-		if previousName != category.Name {
-			if err := tx.Model(&model.Post{}).Where("category = ?", previousName).Update("category", category.Name).Error; err != nil {
-				return err
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{"data": category})
-		return nil
-	}); err != nil {
+	var category model.Category
+	if err := h.db.First(&category, c.Param("id")).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "category not found"})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load category"})
+		return
+	}
+
+	category.Name = nextCategory.Name
+	category.Slug = nextCategory.Slug
+	category.Description = nextCategory.Description
+
+	if err := h.db.Save(&category).Error; err != nil {
 		if isUniqueConstraintError(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": "category already exists"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update category"})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{"data": category})
 }
 
 func (h TaxonomyHandler) DeleteCategory(c *gin.Context) {
@@ -126,7 +116,7 @@ func (h TaxonomyHandler) DeleteCategory(c *gin.Context) {
 	}
 
 	var count int64
-	if err := h.db.Model(&model.Post{}).Where("category = ? AND deleted = ?", category.Name, false).Count(&count).Error; err != nil {
+	if err := h.db.Model(&model.Post{}).Where("category_id = ? AND deleted = ?", category.ID, false).Count(&count).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count category posts"})
 		return
 	}
@@ -189,56 +179,30 @@ func (h TaxonomyHandler) UpdateTag(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.Transaction(func(tx *gorm.DB) error {
-		var tag model.Tag
-		if err := tx.First(&tag, c.Param("id")).Error; err != nil {
-			return err
-		}
-
-		previousName := tag.Name
-		tag.Name = nextTag.Name
-		tag.Slug = nextTag.Slug
-		tag.Color = nextTag.Color
-
-		if err := tx.Save(&tag).Error; err != nil {
-			return err
-		}
-
-		if previousName != tag.Name {
-			var posts []model.Post
-			if err := tx.Find(&posts).Error; err != nil {
-				return err
-			}
-			for _, post := range posts {
-				updated := false
-				for index, postTag := range post.Tags {
-					if postTag == previousName {
-						post.Tags[index] = tag.Name
-						updated = true
-					}
-				}
-				if updated {
-					post.Tags = uniqueStrings(post.Tags)
-					if err := tx.Save(&post).Error; err != nil {
-						return err
-					}
-				}
-			}
-		}
-
-		c.JSON(http.StatusOK, gin.H{"data": tag})
-		return nil
-	}); err != nil {
+	var tag model.Tag
+	if err := h.db.First(&tag, c.Param("id")).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
 			return
 		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load tag"})
+		return
+	}
+
+	tag.Name = nextTag.Name
+	tag.Slug = nextTag.Slug
+	tag.Color = nextTag.Color
+
+	if err := h.db.Save(&tag).Error; err != nil {
 		if isUniqueConstraintError(err) {
 			c.JSON(http.StatusConflict, gin.H{"error": "tag already exists"})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update tag"})
+		return
 	}
+
+	c.JSON(http.StatusOK, gin.H{"data": tag})
 }
 
 func (h TaxonomyHandler) DeleteTag(c *gin.Context) {
@@ -248,27 +212,8 @@ func (h TaxonomyHandler) DeleteTag(c *gin.Context) {
 			return err
 		}
 
-		var posts []model.Post
-		if err := tx.Find(&posts).Error; err != nil {
+		if err := tx.Exec("DELETE FROM post_tags WHERE tag_id = ?", tag.ID).Error; err != nil {
 			return err
-		}
-
-		for _, post := range posts {
-			filtered := post.Tags[:0]
-			changed := false
-			for _, postTag := range post.Tags {
-				if postTag == tag.Name {
-					changed = true
-					continue
-				}
-				filtered = append(filtered, postTag)
-			}
-			if changed {
-				post.Tags = append([]string(nil), filtered...)
-				if err := tx.Save(&post).Error; err != nil {
-					return err
-				}
-			}
 		}
 
 		if err := tx.Delete(&tag).Error; err != nil {
@@ -316,23 +261,6 @@ func buildTag(req tagRequest) (model.Tag, error) {
 		Slug:  slug,
 		Color: strings.TrimSpace(req.Color),
 	}, nil
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	result := make([]string, 0, len(values))
-	for _, value := range values {
-		trimmed := strings.TrimSpace(value)
-		if trimmed == "" {
-			continue
-		}
-		if _, ok := seen[trimmed]; ok {
-			continue
-		}
-		seen[trimmed] = struct{}{}
-		result = append(result, trimmed)
-	}
-	return result
 }
 
 func slugify(value string) string {
