@@ -77,6 +77,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const [tags, setTags] = useState<Tag[]>([]);
     const [values, setValues] = useState<PostFormValues>(createInitialValues);
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
+    const [selectedPostIds, setSelectedPostIds] = useState<number[]>([]);
     const [keyword, setKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
     const [submitting, setSubmitting] = useState(false);
@@ -184,6 +185,16 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         }),
         [posts],
     );
+    const selectablePosts = useMemo(
+        () => filteredPosts.filter((post) => !post.deleted),
+        [filteredPosts],
+    );
+    const allSelected = useMemo(
+        () =>
+            selectablePosts.length > 0 &&
+            selectablePosts.every((post) => selectedPostIds.includes(post.id)),
+        [selectablePosts, selectedPostIds],
+    );
 
     const adminFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
         const response = await fetch(input, {
@@ -197,6 +208,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             setCategories([]);
             setTags([]);
             setSelectedPostId(null);
+            setSelectedPostIds([]);
             setValues(createInitialValues());
             setSuccessMessage("");
             throw new Error("AUTH_REQUIRED");
@@ -490,6 +502,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             setCategories([]);
             setTags([]);
             setSelectedPostId(null);
+            setSelectedPostIds([]);
             setValues(createInitialValues());
             navigate(createAdminPath());
             setBusy(false);
@@ -535,6 +548,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setError("");
         setSuccessMessage("");
         setSelectedPostId(null);
+        setSelectedPostIds([]);
         setValues({
             ...createInitialValues(),
             categoryId: getDefaultCategoryId(categories),
@@ -772,6 +786,9 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                 );
             }
             upsertPost(payload.data);
+            setSelectedPostIds((current) =>
+                current.filter((postId) => postId !== post.id),
+            );
             setSuccessMessage("文章已恢复。");
         } catch (restoreError) {
             setError(formatAdminError(restoreError, "恢复失败，请稍后重试。"));
@@ -815,6 +832,123 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             setSuccessMessage(successText);
         } catch (updateError) {
             setError(formatAdminError(updateError, "更新失败，请稍后重试。"));
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const togglePostSelection = (postId: number) => {
+        setSelectedPostIds((current) =>
+            current.includes(postId)
+                ? current.filter((id) => id !== postId)
+                : [...current, postId],
+        );
+    };
+
+    const toggleAllPosts = () => {
+        setSelectedPostIds(
+            allSelected ? [] : selectablePosts.map((post) => post.id),
+        );
+    };
+
+    const batchToDraft = async () => {
+        const targets = selectablePosts.filter(
+            (post) =>
+                selectedPostIds.includes(post.id) && post.status !== "draft",
+        );
+        if (targets.length === 0) {
+            setError("请选择至少一篇可转为草稿的文章。");
+            setSuccessMessage("");
+            return;
+        }
+
+        setBusy(true);
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            for (const post of targets) {
+                const response = await adminFetch(
+                    `${apiBaseUrl}/api/posts/${post.id}`,
+                    {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(
+                            buildPostPayloadFromPost(post, {
+                                status: "draft",
+                            }),
+                        ),
+                    },
+                );
+                const payload = (await response.json()) as {
+                    data?: Post;
+                    error?: string;
+                };
+                if (!response.ok || !payload.data) {
+                    throw new Error(
+                        payload.error ??
+                            `Request failed with status ${response.status}`,
+                    );
+                }
+                upsertPost(payload.data);
+            }
+
+            setSelectedPostIds([]);
+            setSuccessMessage(`已将 ${targets.length} 篇文章转为草稿。`);
+        } catch (batchError) {
+            setError(
+                formatAdminError(batchError, "批量转草稿失败，请稍后重试。"),
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const batchRecycle = async () => {
+        const targets = selectablePosts.filter((post) =>
+            selectedPostIds.includes(post.id),
+        );
+        if (targets.length === 0) {
+            setError("请至少选择一篇文章。");
+            setSuccessMessage("");
+            return;
+        }
+
+        if (!window.confirm(`确认将 ${targets.length} 篇文章移入回收站吗？`)) {
+            return;
+        }
+
+        setBusy(true);
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            for (const post of targets) {
+                const response = await adminFetch(
+                    `${apiBaseUrl}/api/posts/${post.id}`,
+                    {
+                        method: "DELETE",
+                    },
+                );
+                const payload = (await response.json()) as {
+                    data?: Post;
+                    error?: string;
+                };
+                if (!response.ok || !payload.data) {
+                    throw new Error(
+                        payload.error ??
+                            `Request failed with status ${response.status}`,
+                    );
+                }
+                upsertPost(payload.data);
+            }
+
+            setSelectedPostIds([]);
+            setSuccessMessage(`已回收 ${targets.length} 篇文章。`);
+        } catch (batchError) {
+            setError(
+                formatAdminError(batchError, "批量回收失败，请稍后重试。"),
+            );
         } finally {
             setBusy(false);
         }
@@ -1079,6 +1213,9 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                 (activeViewMode === "posts" ||
                                     activeViewMode === "recycle") && (
                                     <PostsSection
+                                        allSelected={allSelected}
+                                        batchRecycle={batchRecycle}
+                                        batchToDraft={batchToDraft}
                                         busy={busy}
                                         filteredPosts={filteredPosts}
                                         handleRestore={handleRestore}
@@ -1086,9 +1223,14 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                         keyword={keyword}
                                         openEditEditor={openEditEditor}
                                         quickUpdatePost={quickUpdatePost}
+                                        selectedPostIds={selectedPostIds}
                                         setKeyword={setKeyword}
                                         setStatusFilter={setStatusFilter}
                                         statusFilter={statusFilter}
+                                        toggleAll={toggleAllPosts}
+                                        togglePostSelection={
+                                            togglePostSelection
+                                        }
                                         viewMode={activeViewMode}
                                     />
                                 )}

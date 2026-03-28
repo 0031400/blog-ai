@@ -11,6 +11,9 @@ import {
 } from "../shared.ts";
 
 type PostsSectionProps = {
+    allSelected: boolean;
+    batchRecycle: () => Promise<void>;
+    batchToDraft: () => Promise<void>;
     busy: boolean;
     filteredPosts: Post[];
     handleRestore: (post: Post) => Promise<void>;
@@ -22,13 +25,19 @@ type PostsSectionProps = {
         patch: Partial<Post>,
         successText: string,
     ) => Promise<void>;
+    selectedPostIds: number[];
     setKeyword: Dispatch<SetStateAction<string>>;
     setStatusFilter: Dispatch<SetStateAction<StatusFilter>>;
     statusFilter: StatusFilter;
+    toggleAll: () => void;
+    togglePostSelection: (postId: number) => void;
     viewMode: ViewMode;
 };
 
 export function PostsSection({
+    allSelected,
+    batchRecycle,
+    batchToDraft,
     busy,
     filteredPosts,
     handleRestore,
@@ -36,11 +45,16 @@ export function PostsSection({
     keyword,
     openEditEditor,
     quickUpdatePost,
+    selectedPostIds,
     setKeyword,
     setStatusFilter,
     statusFilter,
+    toggleAll,
+    togglePostSelection,
     viewMode,
 }: PostsSectionProps) {
+    const hasSelection = selectedPostIds.length > 0;
+
     return (
         <section className={adminPanelClass}>
             <div className="border-b border-slate-200 bg-white px-4 py-3">
@@ -50,6 +64,8 @@ export function PostsSection({
                             <label className="inline-flex items-center">
                                 <input
                                     type="checkbox"
+                                    checked={allSelected}
+                                    onChange={toggleAll}
                                     className="h-4 w-4 rounded border-slate-300"
                                 />
                             </label>
@@ -83,6 +99,33 @@ export function PostsSection({
                         </button>
                     </div>
                 </div>
+                {viewMode === "posts" ? (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void batchToDraft();
+                            }}
+                            disabled={busy || !hasSelection}
+                            className={secondaryButtonClass}
+                        >
+                            批量转草稿
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                void batchRecycle();
+                            }}
+                            disabled={busy || !hasSelection}
+                            className={dangerButtonClass}
+                        >
+                            批量回收
+                        </button>
+                        <span className="text-slate-500">
+                            已选择 {selectedPostIds.length} 篇
+                        </span>
+                    </div>
+                ) : null}
             </div>
 
             <div className="hidden grid-cols-[minmax(0,1fr)_360px] gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 text-sm font-medium text-slate-500 lg:grid">
@@ -101,6 +144,12 @@ export function PostsSection({
                                 <div className="hidden pt-1 lg:block">
                                     <input
                                         type="checkbox"
+                                        checked={selectedPostIds.includes(
+                                            post.id,
+                                        )}
+                                        onChange={() =>
+                                            togglePostSelection(post.id)
+                                        }
                                         className="h-4 w-4 rounded border-slate-300"
                                     />
                                 </div>
