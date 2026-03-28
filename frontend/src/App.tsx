@@ -16,23 +16,23 @@ function App() {
                     element={<HomePage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route
-                    path="/admin"
+                    path="/console"
                     element={<AdminPage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route
-                    path="/admin/recycle"
+                    path="/console/recycle"
                     element={<AdminPage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route
-                    path="/admin/categories"
+                    path="/console/categories"
                     element={<AdminPage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route
-                    path="/admin/tags"
+                    path="/console/tags"
                     element={<AdminPage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route
-                    path="/admin/posts/editor"
+                    path="/console/posts/editor"
                     element={<AdminPage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route

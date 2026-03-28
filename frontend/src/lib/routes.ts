@@ -1,9 +1,9 @@
 export const homePath = "/";
-export const adminPath = "/admin";
-export const adminPostEditorPath = "/admin/posts/editor";
-export const adminRecyclePath = "/admin/recycle";
-export const adminCategoriesPath = "/admin/categories";
-export const adminTagsPath = "/admin/tags";
+export const adminPath = "/console";
+export const adminPostEditorPath = "/console/posts/editor";
+export const adminRecyclePath = "/console/recycle";
+export const adminCategoriesPath = "/console/categories";
+export const adminTagsPath = "/console/tags";
 
 export function createPostPath(slug: string) {
     return `/posts/${encodeURIComponent(slug)}`;

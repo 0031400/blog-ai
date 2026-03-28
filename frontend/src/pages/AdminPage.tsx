@@ -7,10 +7,7 @@ import {
     createAdminPath,
     createAdminPostEditorPath,
 } from "../lib/routes.ts";
-import {
-    type StatusFilter,
-    type ViewMode,
-} from "./admin/shared.ts";
+import { type StatusFilter, type ViewMode } from "./admin/shared.ts";
 import { CategoriesSection } from "./admin/components/CategoriesSection.tsx";
 import { AdminLoginSection } from "./admin/components/AdminLoginSection.tsx";
 import { AdminOverviewBar } from "./admin/components/AdminOverviewBar.tsx";
@@ -122,11 +119,11 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const editorOpen = location.pathname === adminPostEditorPath;
     const activeViewMode = useMemo<ViewMode>(() => {
         switch (location.pathname) {
-            case "/admin/recycle":
+            case "/console/recycle":
                 return "recycle";
-            case "/admin/categories":
+            case "/console/categories":
                 return "categories";
-            case "/admin/tags":
+            case "/console/tags":
                 return "tags";
             default:
                 return "posts";
