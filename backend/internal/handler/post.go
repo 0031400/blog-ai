@@ -25,7 +25,6 @@ type createPostRequest struct {
 	TagIDs       []uint `json:"tagIds"`
 	ReadingTime  int    `json:"readingTime"`
 	Status       string `json:"status"`
-	Pinned       bool   `json:"pinned"`
 	AllowComment bool   `json:"allowComment"`
 	Deleted      bool   `json:"deleted"`
 	PublishedAt  string `json:"publishedAt"`
@@ -45,7 +44,6 @@ type postInput struct {
 	TagIDs       []uint
 	ReadingTime  int
 	Status       string
-	Pinned       bool
 	AllowComment bool
 	Deleted      bool
 	PublishedAt  time.Time
@@ -76,7 +74,6 @@ type postResponse struct {
 	Tags         []tagResponse     `json:"tags"`
 	ReadingTime  int               `json:"readingTime"`
 	Status       string            `json:"status"`
-	Pinned       bool              `json:"pinned"`
 	AllowComment bool              `json:"allowComment"`
 	Deleted      bool              `json:"deleted"`
 	PublishedAt  time.Time         `json:"publishedAt"`
@@ -126,7 +123,6 @@ func (h PostHandler) List(c *gin.Context) {
 	}
 
 	if err := query.
-		Order("posts.pinned DESC").
 		Order("posts.published_at DESC").
 		Limit(pageSize).
 		Offset((page - 1) * pageSize).
@@ -357,7 +353,6 @@ func (h PostHandler) savePost(existing *model.Post, input postInput) (model.Post
 		post.CategoryID = category.ID
 		post.ReadingTime = input.ReadingTime
 		post.Status = input.Status
-		post.Pinned = input.Pinned
 		post.AllowComment = input.AllowComment
 		post.Deleted = input.Deleted
 		post.PublishedAt = input.PublishedAt
@@ -470,7 +465,6 @@ func buildPost(req createPostRequest) (postInput, error) {
 		TagIDs:       uniqueUints(req.TagIDs),
 		ReadingTime:  req.ReadingTime,
 		Status:       status,
-		Pinned:       req.Pinned,
 		AllowComment: req.AllowComment,
 		Deleted:      req.Deleted,
 		PublishedAt:  publishedAt,
@@ -503,7 +497,6 @@ func buildPostResponse(post model.Post) postResponse {
 		Tags:         buildTagResponses(post.Tags),
 		ReadingTime:  post.ReadingTime,
 		Status:       post.Status,
-		Pinned:       post.Pinned,
 		AllowComment: post.AllowComment,
 		Deleted:      post.Deleted,
 		PublishedAt:  post.PublishedAt,

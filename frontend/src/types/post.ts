@@ -12,7 +12,6 @@ export type Post = {
     tags: Tag[];
     readingTime: number;
     status: "draft" | "published";
-    pinned: boolean;
     allowComment: boolean;
     deleted: boolean;
     publishedAt: string;

@@ -8,7 +8,6 @@ export function normalizePost(post: Post): Post {
         category: post.category ?? null,
         tags: normalizedTags,
         status: post.status ?? "draft",
-        pinned: Boolean(post.pinned),
         allowComment: post.allowComment ?? true,
         deleted: Boolean(post.deleted),
     };

@@ -109,11 +109,6 @@ export function PostsSection({
                                         <span className="truncate font-medium uppercase tracking-[0.14em]">
                                             {post.slug}
                                         </span>
-                                        {post.pinned ? (
-                                            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-[11px] text-rose-700">
-                                                置顶
-                                            </span>
-                                        ) : null}
                                     </div>
                                     <h2 className="mt-1 truncate text-lg font-medium text-slate-900">
                                         {post.title}

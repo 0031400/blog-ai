@@ -15,7 +15,6 @@ type Post struct {
 	Tags         []Tag     `gorm:"many2many:post_tags;" json:"tags"`
 	ReadingTime  int       `gorm:"not null" json:"readingTime"`
 	Status       string    `gorm:"size:20;not null;default:draft;index" json:"status"`
-	Pinned       bool      `gorm:"not null;default:false;index" json:"pinned"`
 	AllowComment bool      `gorm:"not null;default:true" json:"allowComment"`
 	Deleted      bool      `gorm:"not null;default:false;index" json:"deleted"`
 	PublishedAt  time.Time `gorm:"index;not null" json:"publishedAt"`

@@ -8,7 +8,6 @@ export type PostFormValues = {
     tagIds: number[];
     readingTime: string;
     status: "draft" | "published";
-    pinned: boolean;
     allowComment: boolean;
     deleted: boolean;
     publishedAt: string;
