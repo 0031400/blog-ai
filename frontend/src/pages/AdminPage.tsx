@@ -1,9 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import {
+    Link,
+    useLocation,
+    useNavigate,
+    useSearchParams,
+} from "react-router-dom";
 
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
-import { createHomePath, createPostPath } from "../lib/routes.ts";
+import {
+    adminPostEditorPath,
+    createAdminPath,
+    createAdminCategoriesPath,
+    createAdminPostEditorPath,
+    createAdminRecyclePath,
+    createAdminTagsPath,
+    createHomePath,
+    createPostPath,
+} from "../lib/routes.ts";
 import {
     type StatusFilter,
     type ViewMode,
@@ -41,13 +55,14 @@ const createInitialValues = (): PostFormValues => ({
 });
 
 export function AdminPage({ apiBaseUrl }: AdminPageProps) {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
     const [posts, setPosts] = useState<Post[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [tags, setTags] = useState<Tag[]>([]);
     const [values, setValues] = useState<PostFormValues>(createInitialValues);
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
-    const [editorOpen, setEditorOpen] = useState(false);
-    const [viewMode, setViewMode] = useState<ViewMode>("posts");
     const [keyword, setKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
     const [visibilityFilter, setVisibilityFilter] =
@@ -73,6 +88,28 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         () => posts.find((post) => post.id === selectedPostId) ?? null,
         [posts, selectedPostId],
     );
+    const editorPostId = useMemo(() => {
+        const rawPostId = searchParams.get("postId");
+        if (!rawPostId) return null;
+
+        const parsedPostId = Number(rawPostId);
+        return Number.isInteger(parsedPostId) && parsedPostId > 0
+            ? parsedPostId
+            : null;
+    }, [searchParams]);
+    const editorOpen = location.pathname === adminPostEditorPath;
+    const activeViewMode = useMemo<ViewMode>(() => {
+        switch (location.pathname) {
+            case "/admin/recycle":
+                return "recycle";
+            case "/admin/categories":
+                return "categories";
+            case "/admin/tags":
+                return "tags";
+            default:
+                return "posts";
+        }
+    }, [location.pathname]);
     const slugPreview = useMemo(
         () => values.slug.trim() || "your-post-slug",
         [values.slug],
@@ -83,8 +120,8 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         const normalizedKeyword = keyword.trim().toLowerCase();
 
         return posts.filter((post) => {
-            if (viewMode === "posts" && post.deleted) return false;
-            if (viewMode === "recycle" && !post.deleted) return false;
+            if (activeViewMode === "posts" && post.deleted) return false;
+            if (activeViewMode === "recycle" && !post.deleted) return false;
             if (statusFilter !== "all" && post.status !== statusFilter)
                 return false;
             if (
@@ -102,7 +139,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                 (post.tags ?? []).map((tag) => tag.name).join(" "),
             ].some((value) => value.toLowerCase().includes(normalizedKeyword));
         });
-    }, [keyword, posts, statusFilter, viewMode, visibilityFilter]);
+    }, [activeViewMode, keyword, posts, statusFilter, visibilityFilter]);
 
     const categoryUsage = useMemo(() => {
         const usage = new Map<string, number>();
@@ -200,11 +237,66 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         };
     }, [apiBaseUrl]);
 
-    useEffect(() => {
-        if (!selectedPost && selectedPostId !== null) {
-            resetPostForm();
+    const fillPostForm = (
+        post: Post,
+        options?: { preserveMessage?: boolean },
+    ) => {
+        setSelectedPostId(post.id);
+        setValues({
+            title: post.title,
+            slug: post.slug,
+            excerpt: post.excerpt,
+            content: post.content,
+            coverImage: post.coverImage,
+            categoryId: String(post.categoryId),
+            tagIds: [...(post.tagIds ?? [])],
+            readingTime: String(post.readingTime),
+            status: post.status,
+            visibility: post.visibility,
+            pinned: post.pinned,
+            allowComment: post.allowComment,
+            deleted: post.deleted,
+            publishedAt: new Date(post.publishedAt).toISOString().slice(0, 16),
+        });
+        setError("");
+        if (!options?.preserveMessage) {
+            setSuccessMessage("");
         }
-    }, [selectedPost, selectedPostId]);
+    };
+
+    useEffect(() => {
+        if (!editorOpen) {
+            setSelectedPostId(null);
+            return;
+        }
+
+        if (editorPostId !== null) {
+            return;
+        }
+
+        setSelectedPostId(null);
+        setValues(createInitialValues());
+        setError("");
+    }, [activeViewMode, editorOpen, editorPostId]);
+
+    useEffect(() => {
+        if (!editorOpen || editorPostId === null) {
+            return;
+        }
+
+        const post = posts.find((item) => item.id === editorPostId);
+        if (post) {
+            if (selectedPostId !== post.id) {
+                fillPostForm(post);
+            }
+            return;
+        }
+
+        if (!loading) {
+            setError("文章不存在或暂时无法加载。");
+            navigate(createAdminPath(), { replace: true });
+        }
+    }, [editorOpen, editorPostId, loading, navigate, posts, selectedPostId]);
 
     const handleChange =
         (field: keyof PostFormValues) =>
@@ -237,10 +329,8 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         };
 
     const resetPostForm = () => {
-        setSelectedPostId(null);
-        setValues(createInitialValues());
-        setEditorOpen(false);
         setError("");
+        navigate(createAdminPath());
     };
 
     const resetCategoryForm = () => {
@@ -279,41 +369,17 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     };
 
     const openCreateEditor = () => {
-        setValues(createInitialValues());
-        setSelectedPostId(null);
-        setEditorOpen(true);
         setError("");
         setSuccessMessage("");
-        setViewMode("posts");
+        navigate(createAdminPostEditorPath());
     };
 
     const openEditEditor = (
         post: Post,
         options?: { preserveMessage?: boolean },
     ) => {
-        setSelectedPostId(post.id);
-        setValues({
-            title: post.title,
-            slug: post.slug,
-            excerpt: post.excerpt,
-            content: post.content,
-            coverImage: post.coverImage,
-            categoryId: String(post.categoryId),
-            tagIds: [...(post.tagIds ?? [])],
-            readingTime: String(post.readingTime),
-            status: post.status,
-            visibility: post.visibility,
-            pinned: post.pinned,
-            allowComment: post.allowComment,
-            deleted: post.deleted,
-            publishedAt: new Date(post.publishedAt).toISOString().slice(0, 16),
-        });
-        setEditorOpen(true);
-        setViewMode(post.deleted ? "recycle" : "posts");
-        setError("");
-        if (!options?.preserveMessage) {
-            setSuccessMessage("");
-        }
+        fillPostForm(post, options);
+        navigate(createAdminPostEditorPath(post.id));
     };
 
     const buildPostPayload = () => ({
@@ -403,7 +469,10 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                 setSuccessMessage("文章已创建。");
             }
 
-            openEditEditor(payload.data, { preserveMessage: true });
+            fillPostForm(payload.data, { preserveMessage: true });
+            navigate(createAdminPostEditorPath(payload.data.id), {
+                replace: true,
+            });
         } catch (submitError) {
             setError(
                 submitError instanceof Error
@@ -515,7 +584,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             }
             upsertPost(payload.data);
             if (selectedPostId === post.id) {
-                openEditEditor(payload.data, { preserveMessage: true });
+                fillPostForm(payload.data, { preserveMessage: true });
             }
             setSuccessMessage(successText);
         } catch (updateError) {
@@ -722,24 +791,23 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                         Content
                     </div>
                     {[
-                        ["posts", "文章"],
-                        ["recycle", "回收站"],
-                        ["categories", "分类"],
-                        ["tags", "标签"],
-                    ].map(([key, label]) => (
-                        <button
+                        ["posts", "文章", createAdminPath()],
+                        ["recycle", "回收站", createAdminRecyclePath()],
+                        ["categories", "分类", createAdminCategoriesPath()],
+                        ["tags", "标签", createAdminTagsPath()],
+                    ].map(([key, label, path]) => (
+                        <Link
                             key={key}
-                            type="button"
-                            onClick={() => setViewMode(key as ViewMode)}
+                            to={path}
                             className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
-                                viewMode === key
+                                activeViewMode === key
                                     ? "bg-slate-900 text-white"
                                     : "text-slate-600 hover:bg-slate-100"
                             }`}
                         >
                             <span>▣</span>
                             <span>{label}</span>
-                        </button>
+                        </Link>
                     ))}
                 </nav>
             </aside>
@@ -752,7 +820,9 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                 Contents / Management
                             </div>
                             <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.04em] text-slate-900">
-                                {viewTitle(viewMode)}
+                                {viewTitle(
+                                    editorOpen ? "posts" : activeViewMode,
+                                )}
                             </h1>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -835,26 +905,28 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                         />
                     ) : null}
 
-                    {(viewMode === "posts" || viewMode === "recycle") && (
-                        <PostsSection
-                            busy={busy}
-                            filteredPosts={filteredPosts}
-                            formatPostDate={formatDate}
-                            handleRestore={handleRestore}
-                            handleSoftDelete={handleSoftDelete}
-                            keyword={keyword}
-                            openEditEditor={openEditEditor}
-                            quickUpdatePost={quickUpdatePost}
-                            setKeyword={setKeyword}
-                            setStatusFilter={setStatusFilter}
-                            setVisibilityFilter={setVisibilityFilter}
-                            statusFilter={statusFilter}
-                            viewMode={viewMode}
-                            visibilityFilter={visibilityFilter}
-                        />
-                    )}
+                    {!editorOpen &&
+                        (activeViewMode === "posts" ||
+                            activeViewMode === "recycle") && (
+                            <PostsSection
+                                busy={busy}
+                                filteredPosts={filteredPosts}
+                                formatPostDate={formatDate}
+                                handleRestore={handleRestore}
+                                handleSoftDelete={handleSoftDelete}
+                                keyword={keyword}
+                                openEditEditor={openEditEditor}
+                                quickUpdatePost={quickUpdatePost}
+                                setKeyword={setKeyword}
+                                setStatusFilter={setStatusFilter}
+                                setVisibilityFilter={setVisibilityFilter}
+                                statusFilter={statusFilter}
+                                viewMode={activeViewMode}
+                                visibilityFilter={visibilityFilter}
+                            />
+                        )}
 
-                    {viewMode === "categories" && (
+                    {!editorOpen && activeViewMode === "categories" && (
                         <CategoriesSection
                             busy={busy}
                             categories={categories}
@@ -871,7 +943,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                         />
                     )}
 
-                    {viewMode === "tags" && (
+                    {!editorOpen && activeViewMode === "tags" && (
                         <TagsSection
                             busy={busy}
                             deleteTag={deleteTag}

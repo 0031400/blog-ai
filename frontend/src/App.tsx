@@ -11,9 +11,28 @@ function App() {
         <ThemeProvider theme={blogTheme}>
             <CssBaseline />
             <Routes>
-                <Route path="/" element={<HomePage apiBaseUrl={apiBaseUrl} />} />
+                <Route
+                    path="/"
+                    element={<HomePage apiBaseUrl={apiBaseUrl} />}
+                />
                 <Route
                     path="/admin"
+                    element={<AdminPage apiBaseUrl={apiBaseUrl} />}
+                />
+                <Route
+                    path="/admin/recycle"
+                    element={<AdminPage apiBaseUrl={apiBaseUrl} />}
+                />
+                <Route
+                    path="/admin/categories"
+                    element={<AdminPage apiBaseUrl={apiBaseUrl} />}
+                />
+                <Route
+                    path="/admin/tags"
+                    element={<AdminPage apiBaseUrl={apiBaseUrl} />}
+                />
+                <Route
+                    path="/admin/posts/editor"
                     element={<AdminPage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route
