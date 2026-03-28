@@ -270,6 +270,42 @@ func (h PostHandler) Delete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": buildPostResponse(reloaded)})
 }
 
+// PermanentDelete removes a recycled post and its tag associations.
+func (h PostHandler) PermanentDelete(c *gin.Context) {
+	var post model.Post
+	if err := h.db.First(&post, c.Param("id")).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
+			return
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load post"})
+		return
+	}
+
+	if !post.Deleted {
+		c.JSON(http.StatusConflict, gin.H{"error": "post must be recycled before permanent deletion"})
+		return
+	}
+
+	if err := h.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec("DELETE FROM post_tags WHERE post_id = ?", post.ID).Error; err != nil {
+			return err
+		}
+
+		if err := tx.Delete(&post).Error; err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to permanently delete post"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"deleted": true}})
+}
+
 // Restore removes a post from recycle bin.
 func (h PostHandler) Restore(c *gin.Context) {
 	var req restorePostRequest

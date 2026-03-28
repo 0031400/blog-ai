@@ -129,10 +129,47 @@ func (h TaxonomyHandler) DeleteCategory(c *gin.Context) {
 		return
 	}
 
-	if err := h.db.Delete(&category).Error; err != nil {
+	if err := h.db.Transaction(func(tx *gorm.DB) error {
+		var deletedPostsCount int64
+		if err := tx.Model(&model.Post{}).
+			Where("category_id = ? AND deleted = ?", category.ID, true).
+			Count(&deletedPostsCount).Error; err != nil {
+			return err
+		}
+
+		if deletedPostsCount > 0 {
+			var fallbackCategory model.Category
+			if err := tx.
+				Where("id <> ?", category.ID).
+				Order("id ASC").
+				First(&fallbackCategory).Error; err != nil {
+				if err == gorm.ErrRecordNotFound {
+					return errors.New("fallback category not found")
+				}
+				return err
+			}
+
+			if err := tx.Model(&model.Post{}).
+				Where("category_id = ? AND deleted = ?", category.ID, true).
+				Update("category_id", fallbackCategory.ID).Error; err != nil {
+				return err
+			}
+		}
+
+		if err := tx.Delete(&category).Error; err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		if err.Error() == "fallback category not found" {
+			c.JSON(http.StatusConflict, gin.H{"error": "fallback category not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to delete category"})
 		return
 	}
+
 	c.JSON(http.StatusOK, gin.H{"data": gin.H{"deleted": true}})
 }
 

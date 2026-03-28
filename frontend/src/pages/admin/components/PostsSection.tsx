@@ -18,6 +18,7 @@ type PostsSectionProps = {
     busy: boolean;
     currentPage: number;
     filteredPosts: Post[];
+    handlePermanentDelete: (post: Post) => Promise<void>;
     handleRestore: (post: Post) => Promise<void>;
     handleSoftDelete: (post: Post) => Promise<void>;
     keyword: string;
@@ -47,6 +48,7 @@ export function PostsSection({
     busy,
     currentPage,
     filteredPosts,
+    handlePermanentDelete,
     handleRestore,
     handleSoftDelete,
     keyword,
@@ -233,14 +235,26 @@ export function PostsSection({
                                         </button>
                                     </>
                                 ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRestore(post)}
-                                        disabled={busy}
-                                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
-                                    >
-                                        恢复
-                                    </button>
+                                    <>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleRestore(post)}
+                                            disabled={busy}
+                                            className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
+                                        >
+                                            恢复
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handlePermanentDelete(post)
+                                            }
+                                            disabled={busy}
+                                            className={dangerButtonClass}
+                                        >
+                                            删除
+                                        </button>
+                                    </>
                                 )}
                             </div>
                         </div>

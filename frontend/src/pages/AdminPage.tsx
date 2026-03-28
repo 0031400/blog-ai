@@ -828,6 +828,53 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         }
     };
 
+    const handlePermanentDelete = async (post: Post) => {
+        if (
+            !window.confirm(`确认永久删除《${post.title}》吗？此操作不可恢复。`)
+        ) {
+            return;
+        }
+
+        setBusy(true);
+        setError("");
+        setSuccessMessage("");
+
+        try {
+            const response = await adminFetch(
+                `${apiBaseUrl}/api/posts/${post.id}/permanent`,
+                {
+                    method: "DELETE",
+                },
+            );
+            const payload = (await response.json()) as { error?: string };
+            if (!response.ok) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+
+            setPosts((currentPosts) =>
+                currentPosts.filter(
+                    (currentPost) => currentPost.id !== post.id,
+                ),
+            );
+            setSelectedPostIds((current) =>
+                current.filter((postId) => postId !== post.id),
+            );
+            if (selectedPostId === post.id) {
+                resetPostForm();
+            }
+            setSuccessMessage("文章已永久删除。");
+        } catch (deleteError) {
+            setError(
+                formatAdminError(deleteError, "永久删除失败，请稍后重试。"),
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
     const quickUpdatePost = async (
         post: Post,
         patch: Partial<Post>,
@@ -1262,6 +1309,9 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                         busy={busy}
                                         currentPage={postsPage}
                                         filteredPosts={paginatedPosts}
+                                        handlePermanentDelete={
+                                            handlePermanentDelete
+                                        }
                                         handleRestore={handleRestore}
                                         handleSoftDelete={handleSoftDelete}
                                         keyword={keyword}

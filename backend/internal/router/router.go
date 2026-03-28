@@ -42,6 +42,7 @@ func New(db *gorm.DB, cfg config.Config) *gin.Engine {
 	api.POST("/posts", adminOnly, postHandler.Create)
 	api.PUT("/posts/:id", adminOnly, postHandler.Update)
 	api.DELETE("/posts/:id", adminOnly, postHandler.Delete)
+	api.DELETE("/posts/:id/permanent", adminOnly, postHandler.PermanentDelete)
 	api.PUT("/posts/:id/restore", adminOnly, postHandler.Restore)
 	api.GET("/categories", adminOnly, taxonomyHandler.ListCategories)
 	api.POST("/categories", adminOnly, taxonomyHandler.CreateCategory)
