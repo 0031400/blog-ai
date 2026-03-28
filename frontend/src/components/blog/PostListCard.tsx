@@ -19,13 +19,15 @@ export function PostListCard({ post }: PostListCardProps) {
 
     return (
         <article className="fuwari-card relative flex w-full flex-col-reverse overflow-hidden">
-            <Link
-                to={createPostPath(post.slug)}
-                className="relative grid gap-4 px-6 py-6 md:grid-cols-[minmax(0,1fr)_17rem] md:px-9 md:pr-3 md:pt-7"
-            >
+            <div className="relative grid gap-4 px-6 py-6 md:grid-cols-[minmax(0,1fr)_17rem] md:px-9 md:pr-3 md:pt-7">
                 <div className="min-w-0">
-                    <h2 className="fuwari-font-title relative mb-3 block w-full text-[1.9rem] font-bold tracking-[-0.045em] text-slate-900 transition hover:text-sky-500 md:text-[2rem]">
-                        {post.title}
+                    <h2 className="mb-3">
+                        <Link
+                            to={createPostPath(post.slug)}
+                            className="fuwari-font-title relative block w-full text-[1.9rem] font-bold tracking-[-0.045em] text-slate-900 transition hover:text-sky-500 md:text-[2rem]"
+                        >
+                            {post.title}
+                        </Link>
                     </h2>
 
                     <div className="mb-3 flex flex-wrap items-center gap-y-2 text-sm text-slate-400">
@@ -75,14 +77,17 @@ export function PostListCard({ post }: PostListCardProps) {
                     </div>
                 </div>
 
-                <div className="relative mx-1 -mb-1 mt-1 overflow-hidden rounded-2xl bg-slate-100 md:mx-0 md:mb-0 md:mt-0 md:my-3">
+                <Link
+                    to={createPostPath(post.slug)}
+                    className="relative mx-1 -mb-1 mt-1 overflow-hidden rounded-2xl bg-slate-100 md:mx-0 md:mb-0 md:mt-0 md:my-3"
+                >
                     <img
                         src={getPostCoverImage(post.coverImage)}
                         alt={post.title}
                         className="max-h-[20vh] w-full object-cover md:h-full md:max-h-none"
                     />
-                </div>
-            </Link>
+                </Link>
+            </div>
         </article>
     );
 }

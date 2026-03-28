@@ -53,14 +53,8 @@ function buildCategoryItems(posts: Post[], categories: Category[]) {
         .slice(0, 6);
 }
 
-function buildTagItems(posts: Post[], tags: Tag[]) {
-    const tagIds = new Set<number>();
-
-    posts.forEach((post) => {
-        (post.tags ?? []).forEach((tag) => tagIds.add(tag.id));
-    });
-
-    return tags.filter((tag) => tagIds.has(tag.id)).slice(0, 18);
+function buildTagItems(tags: Tag[]) {
+    return tags.slice(0, 18);
 }
 
 export function HomePage({ apiBaseUrl }: HomePageProps) {
@@ -171,7 +165,7 @@ export function HomePage({ apiBaseUrl }: HomePageProps) {
         () => buildCategoryItems(posts, categories),
         [categories, posts],
     );
-    const tagItems = useMemo(() => buildTagItems(posts, tags), [posts, tags]);
+    const tagItems = useMemo(() => buildTagItems(tags), [tags]);
     const totalPages = useMemo(
         () => Math.max(1, Math.ceil(totalPosts / POSTS_PER_PAGE)),
         [totalPosts],

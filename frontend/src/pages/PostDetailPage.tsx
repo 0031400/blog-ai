@@ -35,14 +35,8 @@ function buildCategoryItems(posts: Post[], categories: Category[]) {
         .slice(0, 6);
 }
 
-function buildTagItems(posts: Post[], tags: Tag[]) {
-    const tagIds = new Set<number>();
-
-    posts.forEach((post) => {
-        (post.tags ?? []).forEach((tag) => tagIds.add(tag.id));
-    });
-
-    return tags.filter((tag) => tagIds.has(tag.id)).slice(0, 18);
+function buildTagItems(tags: Tag[]) {
+    return tags.slice(0, 18);
 }
 
 export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
@@ -144,10 +138,7 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
         () => buildCategoryItems(publicPosts, categories),
         [categories, publicPosts],
     );
-    const tagItems = useMemo(
-        () => buildTagItems(publicPosts, tags),
-        [publicPosts, tags],
-    );
+    const tagItems = useMemo(() => buildTagItems(tags), [tags]);
     const readingStats = useMemo(
         () => calculateReadingStats(post?.content ?? ""),
         [post?.content],
