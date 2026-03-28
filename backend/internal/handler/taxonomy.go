@@ -37,7 +37,11 @@ func (h TaxonomyHandler) ListCategories(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load categories"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": categories})
+	result := make([]categoryResponse, 0, len(categories))
+	for _, category := range categories {
+		result = append(result, buildCategoryResponse(category))
+	}
+	c.JSON(http.StatusOK, gin.H{"data": result})
 }
 
 func (h TaxonomyHandler) CreateCategory(c *gin.Context) {
@@ -62,7 +66,7 @@ func (h TaxonomyHandler) CreateCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": category})
+	c.JSON(http.StatusCreated, gin.H{"data": buildCategoryResponse(category)})
 }
 
 func (h TaxonomyHandler) UpdateCategory(c *gin.Context) {
@@ -101,7 +105,7 @@ func (h TaxonomyHandler) UpdateCategory(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": category})
+	c.JSON(http.StatusOK, gin.H{"data": buildCategoryResponse(category)})
 }
 
 func (h TaxonomyHandler) DeleteCategory(c *gin.Context) {
@@ -138,7 +142,7 @@ func (h TaxonomyHandler) ListTags(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load tags"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"data": tags})
+	c.JSON(http.StatusOK, gin.H{"data": buildTagResponses(tags)})
 }
 
 func (h TaxonomyHandler) CreateTag(c *gin.Context) {
@@ -163,7 +167,7 @@ func (h TaxonomyHandler) CreateTag(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"data": tag})
+	c.JSON(http.StatusCreated, gin.H{"data": buildTagResponses([]model.Tag{tag})[0]})
 }
 
 func (h TaxonomyHandler) UpdateTag(c *gin.Context) {
@@ -202,7 +206,7 @@ func (h TaxonomyHandler) UpdateTag(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": tag})
+	c.JSON(http.StatusOK, gin.H{"data": buildTagResponses([]model.Tag{tag})[0]})
 }
 
 func (h TaxonomyHandler) DeleteTag(c *gin.Context) {

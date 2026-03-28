@@ -56,26 +56,38 @@ type postInput struct {
 	PublishedAt  time.Time
 }
 
+type categoryResponse struct {
+	ID          uint   `json:"id"`
+	Name        string `json:"name"`
+	Slug        string `json:"slug"`
+	Description string `json:"description"`
+}
+
+type tagResponse struct {
+	ID    uint   `json:"id"`
+	Name  string `json:"name"`
+	Slug  string `json:"slug"`
+	Color string `json:"color"`
+}
+
 type postResponse struct {
-	ID           uint            `json:"id"`
-	Title        string          `json:"title"`
-	Slug         string          `json:"slug"`
-	Excerpt      string          `json:"excerpt"`
-	Content      string          `json:"content"`
-	CoverImage   string          `json:"coverImage"`
-	CategoryID   uint            `json:"categoryId"`
-	Category     *model.Category `json:"category"`
-	TagIDs       []uint          `json:"tagIds"`
-	Tags         []model.Tag     `json:"tags"`
-	ReadingTime  int             `json:"readingTime"`
-	Status       string          `json:"status"`
-	Visibility   string          `json:"visibility"`
-	Pinned       bool            `json:"pinned"`
-	AllowComment bool            `json:"allowComment"`
-	Deleted      bool            `json:"deleted"`
-	PublishedAt  time.Time       `json:"publishedAt"`
-	CreatedAt    time.Time       `json:"createdAt"`
-	UpdatedAt    time.Time       `json:"updatedAt"`
+	ID           uint              `json:"id"`
+	Title        string            `json:"title"`
+	Slug         string            `json:"slug"`
+	Excerpt      string            `json:"excerpt"`
+	Content      string            `json:"content"`
+	CoverImage   string            `json:"coverImage"`
+	Category     *categoryResponse `json:"category"`
+	Tags         []tagResponse     `json:"tags"`
+	ReadingTime  int               `json:"readingTime"`
+	Status       string            `json:"status"`
+	Visibility   string            `json:"visibility"`
+	Pinned       bool              `json:"pinned"`
+	AllowComment bool              `json:"allowComment"`
+	Deleted      bool              `json:"deleted"`
+	PublishedAt  time.Time         `json:"publishedAt"`
+	CreatedAt    time.Time         `json:"createdAt"`
+	UpdatedAt    time.Time         `json:"updatedAt"`
 }
 
 type paginationResponse struct {
@@ -491,14 +503,10 @@ func buildPostResponses(posts []model.Post) []postResponse {
 }
 
 func buildPostResponse(post model.Post) postResponse {
-	tagIDs := make([]uint, 0, len(post.Tags))
-	for _, tag := range post.Tags {
-		tagIDs = append(tagIDs, tag.ID)
-	}
-
-	var category *model.Category
+	var category *categoryResponse
 	if post.Category.ID != 0 {
-		category = &post.Category
+		categoryValue := buildCategoryResponse(post.Category)
+		category = &categoryValue
 	}
 
 	return postResponse{
@@ -508,10 +516,8 @@ func buildPostResponse(post model.Post) postResponse {
 		Excerpt:      post.Excerpt,
 		Content:      post.Content,
 		CoverImage:   post.CoverImage,
-		CategoryID:   post.CategoryID,
 		Category:     category,
-		TagIDs:       tagIDs,
-		Tags:         post.Tags,
+		Tags:         buildTagResponses(post.Tags),
 		ReadingTime:  post.ReadingTime,
 		Status:       post.Status,
 		Visibility:   post.Visibility,
@@ -522,6 +528,28 @@ func buildPostResponse(post model.Post) postResponse {
 		CreatedAt:    post.CreatedAt,
 		UpdatedAt:    post.UpdatedAt,
 	}
+}
+
+func buildCategoryResponse(category model.Category) categoryResponse {
+	return categoryResponse{
+		ID:          category.ID,
+		Name:        category.Name,
+		Slug:        category.Slug,
+		Description: category.Description,
+	}
+}
+
+func buildTagResponses(tags []model.Tag) []tagResponse {
+	result := make([]tagResponse, 0, len(tags))
+	for _, tag := range tags {
+		result = append(result, tagResponse{
+			ID:    tag.ID,
+			Name:  tag.Name,
+			Slug:  tag.Slug,
+			Color: tag.Color,
+		})
+	}
+	return result
 }
 
 func uniqueUints(values []uint) []uint {

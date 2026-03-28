@@ -8,9 +8,7 @@ export type Post = {
     excerpt: string;
     content: string;
     coverImage: string;
-    categoryId: number;
     category: Category | null;
-    tagIds: number[];
     tags: Tag[];
     readingTime: number;
     status: "draft" | "published";
