@@ -8,7 +8,6 @@ import {
     secondaryButtonClass,
     type StatusFilter,
     type ViewMode,
-    type VisibilityFilter,
 } from "../shared.ts";
 
 type PostsSectionProps = {
@@ -25,10 +24,8 @@ type PostsSectionProps = {
     ) => Promise<void>;
     setKeyword: Dispatch<SetStateAction<string>>;
     setStatusFilter: Dispatch<SetStateAction<StatusFilter>>;
-    setVisibilityFilter: Dispatch<SetStateAction<VisibilityFilter>>;
     statusFilter: StatusFilter;
     viewMode: ViewMode;
-    visibilityFilter: VisibilityFilter;
 };
 
 export function PostsSection({
@@ -41,10 +38,8 @@ export function PostsSection({
     quickUpdatePost,
     setKeyword,
     setStatusFilter,
-    setVisibilityFilter,
     statusFilter,
     viewMode,
-    visibilityFilter,
 }: PostsSectionProps) {
     return (
         <section className={adminPanelClass}>
@@ -79,19 +74,6 @@ export function PostsSection({
                             <option value="all">状态: 全部</option>
                             <option value="published">状态: 已发布</option>
                             <option value="draft">状态: 草稿</option>
-                        </select>
-                        <select
-                            value={visibilityFilter}
-                            onChange={(event) =>
-                                setVisibilityFilter(
-                                    event.target.value as VisibilityFilter,
-                                )
-                            }
-                            className="rounded-xl border border-transparent bg-transparent px-3 py-2 text-slate-700 outline-none hover:border-slate-200 hover:bg-white"
-                        >
-                            <option value="all">可见性: 全部</option>
-                            <option value="public">可见性: 公开</option>
-                            <option value="private">可见性: 私密</option>
                         </select>
                         <button
                             type="button"
@@ -132,11 +114,6 @@ export function PostsSection({
                                                 置顶
                                             </span>
                                         ) : null}
-                                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">
-                                            {post.visibility === "public"
-                                                ? "公开"
-                                                : "私密"}
-                                        </span>
                                     </div>
                                     <h2 className="mt-1 truncate text-lg font-medium text-slate-900">
                                         {post.title}
@@ -177,30 +154,6 @@ export function PostsSection({
                                             {post.status === "published"
                                                 ? "转草稿"
                                                 : "发布"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                quickUpdatePost(
-                                                    post,
-                                                    {
-                                                        visibility:
-                                                            post.visibility ===
-                                                            "public"
-                                                                ? "private"
-                                                                : "public",
-                                                    },
-                                                    post.visibility === "public"
-                                                        ? "已设为私密。"
-                                                        : "已设为公开。",
-                                                )
-                                            }
-                                            disabled={busy}
-                                            className={secondaryButtonClass}
-                                        >
-                                            {post.visibility === "public"
-                                                ? "私密"
-                                                : "公开"}
                                         </button>
                                         <button
                                             type="button"

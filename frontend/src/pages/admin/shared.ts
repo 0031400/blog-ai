@@ -1,6 +1,5 @@
 export type ViewMode = "posts" | "recycle" | "categories" | "tags";
 export type StatusFilter = "all" | "draft" | "published";
-export type VisibilityFilter = "all" | "public" | "private";
 
 export const inputClass =
     "w-full rounded-md border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-4 focus:ring-sky-50";

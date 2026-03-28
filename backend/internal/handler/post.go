@@ -13,10 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var (
-	validStatuses     = []string{"draft", "published"}
-	validVisibilities = []string{"public", "private"}
-)
+var validStatuses = []string{"draft", "published"}
 
 type createPostRequest struct {
 	Title        string `json:"title"`
@@ -28,7 +25,6 @@ type createPostRequest struct {
 	TagIDs       []uint `json:"tagIds"`
 	ReadingTime  int    `json:"readingTime"`
 	Status       string `json:"status"`
-	Visibility   string `json:"visibility"`
 	Pinned       bool   `json:"pinned"`
 	AllowComment bool   `json:"allowComment"`
 	Deleted      bool   `json:"deleted"`
@@ -49,7 +45,6 @@ type postInput struct {
 	TagIDs       []uint
 	ReadingTime  int
 	Status       string
-	Visibility   string
 	Pinned       bool
 	AllowComment bool
 	Deleted      bool
@@ -81,7 +76,6 @@ type postResponse struct {
 	Tags         []tagResponse     `json:"tags"`
 	ReadingTime  int               `json:"readingTime"`
 	Status       string            `json:"status"`
-	Visibility   string            `json:"visibility"`
 	Pinned       bool              `json:"pinned"`
 	AllowComment bool              `json:"allowComment"`
 	Deleted      bool              `json:"deleted"`
@@ -106,7 +100,7 @@ func NewPostHandler(db *gorm.DB) PostHandler {
 	return PostHandler{db: db}
 }
 
-// List returns posts. Public requests only see published/public/non-deleted posts.
+// List returns posts. Public requests only see published/non-deleted posts.
 func (h PostHandler) List(c *gin.Context) {
 	var posts []model.Post
 	page := parsePositiveInt(c.Query("page"), 1)
@@ -122,7 +116,7 @@ func (h PostHandler) List(c *gin.Context) {
 		}
 		query = applyAdminFilters(query, c)
 	} else {
-		query = query.Where("posts.deleted = ? AND posts.status = ? AND posts.visibility = ?", false, "published", "public")
+		query = query.Where("posts.deleted = ? AND posts.status = ?", false, "published")
 	}
 
 	var total int64
@@ -167,7 +161,7 @@ func isAdminRequestAllowed(c *gin.Context) bool {
 func (h PostHandler) GetBySlug(c *gin.Context) {
 	var post model.Post
 	if err := h.postQuery().
-		Where("posts.slug = ? AND posts.deleted = ? AND posts.status = ? AND posts.visibility = ?", c.Param("slug"), false, "published", "public").
+		Where("posts.slug = ? AND posts.deleted = ? AND posts.status = ?", c.Param("slug"), false, "published").
 		First(&post).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			c.JSON(http.StatusNotFound, gin.H{"error": "post not found"})
@@ -363,7 +357,6 @@ func (h PostHandler) savePost(existing *model.Post, input postInput) (model.Post
 		post.CategoryID = category.ID
 		post.ReadingTime = input.ReadingTime
 		post.Status = input.Status
-		post.Visibility = input.Visibility
 		post.Pinned = input.Pinned
 		post.AllowComment = input.AllowComment
 		post.Deleted = input.Deleted
@@ -418,10 +411,6 @@ func applyAdminFilters(query *gorm.DB, c *gin.Context) *gorm.DB {
 		query = query.Where("posts.status = ?", status)
 	}
 
-	if visibility := strings.TrimSpace(c.Query("visibility")); visibility != "" {
-		query = query.Where("posts.visibility = ?", visibility)
-	}
-
 	if deleted := strings.TrimSpace(c.Query("deleted")); deleted != "" {
 		query = query.Where("posts.deleted = ?", deleted == "true")
 	}
@@ -448,7 +437,6 @@ func buildPost(req createPostRequest) (postInput, error) {
 	content := strings.TrimSpace(req.Content)
 	coverImage := strings.TrimSpace(req.CoverImage)
 	status := normalizeStatus(req.Status)
-	visibility := normalizeVisibility(req.Visibility)
 
 	switch {
 	case title == "":
@@ -465,8 +453,6 @@ func buildPost(req createPostRequest) (postInput, error) {
 		return postInput{}, errors.New("reading time must be greater than 0")
 	case !slices.Contains(validStatuses, status):
 		return postInput{}, errors.New("status must be draft or published")
-	case !slices.Contains(validVisibilities, visibility):
-		return postInput{}, errors.New("visibility must be public or private")
 	}
 
 	publishedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(req.PublishedAt))
@@ -484,7 +470,6 @@ func buildPost(req createPostRequest) (postInput, error) {
 		TagIDs:       uniqueUints(req.TagIDs),
 		ReadingTime:  req.ReadingTime,
 		Status:       status,
-		Visibility:   visibility,
 		Pinned:       req.Pinned,
 		AllowComment: req.AllowComment,
 		Deleted:      req.Deleted,
@@ -518,7 +503,6 @@ func buildPostResponse(post model.Post) postResponse {
 		Tags:         buildTagResponses(post.Tags),
 		ReadingTime:  post.ReadingTime,
 		Status:       post.Status,
-		Visibility:   post.Visibility,
 		Pinned:       post.Pinned,
 		AllowComment: post.AllowComment,
 		Deleted:      post.Deleted,
@@ -571,13 +555,6 @@ func normalizeStatus(status string) string {
 		return "draft"
 	}
 	return strings.ToLower(strings.TrimSpace(status))
-}
-
-func normalizeVisibility(visibility string) string {
-	if strings.TrimSpace(visibility) == "" {
-		return "public"
-	}
-	return strings.ToLower(strings.TrimSpace(visibility))
 }
 
 func isUniqueConstraintError(err error) bool {

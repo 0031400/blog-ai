@@ -10,7 +10,6 @@ import {
 import {
     type StatusFilter,
     type ViewMode,
-    type VisibilityFilter,
 } from "./admin/shared.ts";
 import { CategoriesSection } from "./admin/components/CategoriesSection.tsx";
 import { AdminLoginSection } from "./admin/components/AdminLoginSection.tsx";
@@ -39,7 +38,6 @@ const createInitialValues = (): PostFormValues => ({
     tagIds: [],
     readingTime: "5",
     status: "draft",
-    visibility: "public",
     pinned: false,
     allowComment: true,
     deleted: false,
@@ -85,8 +83,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
     const [keyword, setKeyword] = useState("");
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
-    const [visibilityFilter, setVisibilityFilter] =
-        useState<VisibilityFilter>("all");
     const [submitting, setSubmitting] = useState(false);
     const [busy, setBusy] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -147,11 +143,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             if (activeViewMode === "recycle" && !post.deleted) return false;
             if (statusFilter !== "all" && post.status !== statusFilter)
                 return false;
-            if (
-                visibilityFilter !== "all" &&
-                post.visibility !== visibilityFilter
-            )
-                return false;
             if (!normalizedKeyword) return true;
 
             return [
@@ -162,7 +153,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                 (post.tags ?? []).map((tag) => tag.name).join(" "),
             ].some((value) => value.toLowerCase().includes(normalizedKeyword));
         });
-    }, [activeViewMode, keyword, posts, statusFilter, visibilityFilter]);
+    }, [activeViewMode, keyword, posts, statusFilter]);
 
     const categoryUsage = useMemo(() => {
         const usage = new Map<string, number>();
@@ -359,7 +350,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             tagIds: (post.tags ?? []).map((tag) => tag.id),
             readingTime: String(post.readingTime),
             status: post.status,
-            visibility: post.visibility,
             pinned: post.pinned,
             allowComment: post.allowComment,
             deleted: post.deleted,
@@ -575,7 +565,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         tagIds: values.tagIds,
         readingTime: Number(values.readingTime),
         status: values.status,
-        visibility: values.visibility,
         pinned: values.pinned,
         allowComment: values.allowComment,
         deleted: values.deleted,
@@ -598,7 +587,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             tagIds: (nextPost.tags ?? []).map((tag) => tag.id),
             readingTime: nextPost.readingTime,
             status: nextPost.status,
-            visibility: nextPost.visibility,
             pinned: nextPost.pinned,
             allowComment: nextPost.allowComment,
             deleted: nextPost.deleted,
@@ -695,7 +683,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                     tagIds: nextValues.tagIds,
                     readingTime: Number(nextValues.readingTime),
                     status: nextValues.status,
-                    visibility: nextValues.visibility,
                     pinned: nextValues.pinned,
                     allowComment: nextValues.allowComment,
                     deleted: nextValues.deleted,
@@ -1109,12 +1096,8 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                         quickUpdatePost={quickUpdatePost}
                                         setKeyword={setKeyword}
                                         setStatusFilter={setStatusFilter}
-                                        setVisibilityFilter={
-                                            setVisibilityFilter
-                                        }
                                         statusFilter={statusFilter}
                                         viewMode={activeViewMode}
-                                        visibilityFilter={visibilityFilter}
                                     />
                                 )}
 

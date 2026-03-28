@@ -8,7 +8,6 @@ export type PostFormValues = {
     tagIds: number[];
     readingTime: string;
     status: "draft" | "published";
-    visibility: "public" | "private";
     pinned: boolean;
     allowComment: boolean;
     deleted: boolean;
