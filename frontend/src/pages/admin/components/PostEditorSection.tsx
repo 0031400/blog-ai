@@ -1,20 +1,14 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import { MarkdownContent } from "../../../components/MarkdownContent.tsx";
 import type { Category } from "../../../types/category.ts";
-import type { Post } from "../../../types/post.ts";
 import type { PostFormValues } from "../../../types/postForm.ts";
 import type { Tag } from "../../../types/tag.ts";
-import {
-    adminPanelClass,
-    ghostButtonClass,
-    primaryButtonClass,
-} from "../shared.ts";
+import { adminPanelClass } from "../shared.ts";
 import { EditorSettingsModal } from "./EditorSettingsModal.tsx";
 
 type PostEditorSectionProps = {
     applyValues: (patch: Partial<PostFormValues>) => void;
-    busy: boolean;
     categories: Category[];
     handleChange: (
         field: keyof PostFormValues,
@@ -23,32 +17,23 @@ type PostEditorSectionProps = {
             HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
         >,
     ) => void;
-    handleSoftDelete: (post: Post) => Promise<void>;
-    isEditingPost: boolean;
+    onCloseSettings: () => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
-    resetPostForm: () => void;
-    selectedPost: Post | null;
-    submitting: boolean;
+    settingsOpen: boolean;
     tags: Tag[];
     values: PostFormValues;
 };
 
 export function PostEditorSection({
     applyValues,
-    busy,
     categories,
     handleChange,
-    handleSoftDelete,
-    isEditingPost,
+    onCloseSettings,
     onSubmit,
-    resetPostForm,
-    selectedPost,
-    submitting,
+    settingsOpen,
     tags,
     values,
 }: PostEditorSectionProps) {
-    const [settingsOpen, setSettingsOpen] = useState(false);
-
     const previewContent = useMemo(
         () => values.content.trim(),
         [values.content],
@@ -58,49 +43,6 @@ export function PostEditorSection({
         <>
             <section className={adminPanelClass}>
                 <div className="flex min-h-[calc(100vh-9rem)] flex-col">
-                    <div className="border-b border-slate-200 px-5 py-4">
-                        <div className="flex flex-wrap items-center justify-between gap-4">
-                            <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-3 text-[1.875rem] font-semibold tracking-[-0.05em] text-slate-900">
-                                    <span className="text-[1.55rem] leading-none">
-                                        ◫
-                                    </span>
-                                    文章
-                                </div>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                                <button
-                                    type="button"
-                                    className={ghostButtonClass}
-                                >
-                                    预览
-                                </button>
-                                <button
-                                    type="submit"
-                                    form="post-editor-form"
-                                    disabled={submitting || busy}
-                                    className={ghostButtonClass}
-                                >
-                                    保存
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setSettingsOpen(true)}
-                                    className={ghostButtonClass}
-                                >
-                                    设置
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={resetPostForm}
-                                    className={primaryButtonClass}
-                                >
-                                    发布
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
                     <form
                         id="post-editor-form"
                         onSubmit={onSubmit}
@@ -180,26 +122,11 @@ export function PostEditorSection({
                 </div>
             </section>
 
-            {isEditingPost && !selectedPost?.deleted ? (
-                <div className="mt-4 flex justify-end">
-                    <button
-                        type="button"
-                        onClick={() =>
-                            selectedPost && handleSoftDelete(selectedPost)
-                        }
-                        disabled={busy}
-                        className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600 disabled:opacity-60"
-                    >
-                        移入回收站
-                    </button>
-                </div>
-            ) : null}
-
             {settingsOpen ? (
                 <EditorSettingsModal
                     categories={categories}
                     onApply={applyValues}
-                    onClose={() => setSettingsOpen(false)}
+                    onClose={onCloseSettings}
                     tags={tags}
                     values={values}
                 />

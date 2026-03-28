@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
-import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
 import {
     adminPostEditorPath,
@@ -75,6 +74,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const [submitting, setSubmitting] = useState(false);
     const [busy, setBusy] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [editorSettingsOpen, setEditorSettingsOpen] = useState(false);
     const [authChecking, setAuthChecking] = useState(true);
     const [authenticated, setAuthenticated] = useState(false);
     const [loginSubmitting, setLoginSubmitting] = useState(false);
@@ -421,6 +421,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
 
     const resetPostForm = () => {
         setError("");
+        setEditorSettingsOpen(false);
         navigate(createAdminPath());
     };
 
@@ -926,14 +927,25 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
 
                 <main className="min-w-0 flex-1 md:ml-64">
                     <AdminTopbar
+                        busy={busy}
                         editorOpen={editorOpen}
                         onCreatePost={openCreateEditor}
+                        onOpenEditorSettings={() => setEditorSettingsOpen(true)}
                         onLogout={handleLogout}
+                        onPublishPost={resetPostForm}
+                        onRecyclePost={() =>
+                            selectedPost && handleSoftDelete(selectedPost)
+                        }
                         selectedPost={selectedPost}
+                        submitting={submitting}
                         viewMode={activeViewMode}
                     />
 
-                    <div className="px-4 py-4 md:px-6 md:py-6">
+                    <div
+                        className={
+                            editorOpen ? "" : "px-4 py-4 md:px-6 md:py-6"
+                        }
+                    >
                         {!editorOpen ? (
                             <AdminOverviewBar
                                 drafts={stats.drafts}
@@ -959,18 +971,16 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                             </div>
                         ) : null}
 
-                        <div className="mt-4">
+                        <div className={editorOpen ? "" : "mt-4"}>
                             {editorOpen ? (
                                 <PostEditorSection
                                     applyValues={applyValues}
-                                    busy={busy}
                                     categories={categories}
                                     handleChange={handleChange}
-                                    handleSoftDelete={handleSoftDelete}
-                                    isEditingPost={isEditingPost}
-                                    resetPostForm={resetPostForm}
-                                    selectedPost={selectedPost}
-                                    submitting={submitting}
+                                    onCloseSettings={() =>
+                                        setEditorSettingsOpen(false)
+                                    }
+                                    settingsOpen={editorSettingsOpen}
                                     tags={tags}
                                     values={values}
                                     onSubmit={handleSubmit}
@@ -983,7 +993,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                     <PostsSection
                                         busy={busy}
                                         filteredPosts={filteredPosts}
-                                        formatPostDate={formatDate}
                                         handleRestore={handleRestore}
                                         handleSoftDelete={handleSoftDelete}
                                         keyword={keyword}

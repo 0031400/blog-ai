@@ -8,16 +8,26 @@ import { viewTitle } from "../shared.ts";
 type AdminTopbarProps = {
     editorOpen: boolean;
     onCreatePost: () => void;
+    onOpenEditorSettings: () => void;
+    onPublishPost: () => void;
+    onRecyclePost: () => void;
     onLogout: () => void;
     selectedPost: Post | null;
+    submitting?: boolean;
+    busy?: boolean;
     viewMode: ViewMode;
 };
 
 export function AdminTopbar({
     editorOpen,
     onCreatePost,
+    onOpenEditorSettings,
+    onPublishPost,
+    onRecyclePost,
     onLogout,
     selectedPost,
+    submitting = false,
+    busy = false,
     viewMode,
 }: AdminTopbarProps) {
     return (
@@ -46,7 +56,7 @@ export function AdminTopbar({
                     >
                         首页
                     </Link>
-                    {selectedPost ? (
+                    {editorOpen && selectedPost ? (
                         <Link
                             to={createPostPath(selectedPost.slug)}
                             className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
@@ -54,14 +64,51 @@ export function AdminTopbar({
                             预览
                         </Link>
                     ) : null}
-                    <button
-                        type="button"
-                        onClick={onCreatePost}
-                        className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-                    >
-                        <span className="text-base leading-none">＋</span>
-                        <span>新建</span>
-                    </button>
+                    {editorOpen ? (
+                        <>
+                            <button
+                                type="submit"
+                                form="post-editor-form"
+                                disabled={submitting || busy}
+                                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                            >
+                                保存
+                            </button>
+                            <button
+                                type="button"
+                                onClick={onOpenEditorSettings}
+                                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
+                            >
+                                设置
+                            </button>
+                            {selectedPost && !selectedPost.deleted ? (
+                                <button
+                                    type="button"
+                                    onClick={onRecyclePost}
+                                    disabled={busy}
+                                    className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 transition hover:bg-rose-100 disabled:opacity-60"
+                                >
+                                    移入回收站
+                                </button>
+                            ) : null}
+                            <button
+                                type="button"
+                                onClick={onPublishPost}
+                                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                            >
+                                发布
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            onClick={onCreatePost}
+                            className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+                        >
+                            <span className="text-base leading-none">＋</span>
+                            <span>新建</span>
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={onLogout}

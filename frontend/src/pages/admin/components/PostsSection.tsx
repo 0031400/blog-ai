@@ -14,7 +14,6 @@ import {
 type PostsSectionProps = {
     busy: boolean;
     filteredPosts: Post[];
-    formatPostDate: (value: string) => string;
     handleRestore: (post: Post) => Promise<void>;
     handleSoftDelete: (post: Post) => Promise<void>;
     keyword: string;
@@ -35,7 +34,6 @@ type PostsSectionProps = {
 export function PostsSection({
     busy,
     filteredPosts,
-    formatPostDate,
     handleRestore,
     handleSoftDelete,
     keyword,
@@ -105,11 +103,8 @@ export function PostsSection({
                 </div>
             </div>
 
-            <div className="hidden grid-cols-[minmax(0,1.7fr)_130px_130px_120px_170px] gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 text-sm font-medium text-slate-500 lg:grid">
+            <div className="hidden grid-cols-[minmax(0,1fr)_360px] gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 text-sm font-medium text-slate-500 lg:grid">
                 <div>文章</div>
-                <div>分类</div>
-                <div>状态</div>
-                <div>发布时间</div>
                 <div className="text-right">操作</div>
             </div>
 
@@ -119,7 +114,7 @@ export function PostsSection({
                         key={post.id}
                         className="px-4 py-4 transition hover:bg-slate-50/70 lg:px-6"
                     >
-                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_130px_130px_120px_170px] lg:items-center">
+                        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
                             <div className="flex min-w-0 gap-4">
                                 <div className="hidden pt-1 lg:block">
                                     <input
@@ -127,11 +122,6 @@ export function PostsSection({
                                         className="h-4 w-4 rounded border-slate-300"
                                     />
                                 </div>
-                                <img
-                                    src={post.coverImage}
-                                    alt={post.title}
-                                    className="h-16 w-16 rounded-md object-cover"
-                                />
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
                                         <span className="truncate font-medium uppercase tracking-[0.14em]">
@@ -151,52 +141,10 @@ export function PostsSection({
                                     <h2 className="mt-1 truncate text-lg font-medium text-slate-900">
                                         {post.title}
                                     </h2>
-                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
-                                        <span>
-                                            分类：
-                                            {post.category?.name ?? "未分类"}
-                                        </span>
-                                        <span>访问量 0</span>
-                                        <span>评论 0</span>
-                                    </div>
-                                    {(post.tags ?? []).length ? (
-                                        <div className="mt-2 flex flex-wrap gap-1.5">
-                                            {(post.tags ?? []).map((tag) => (
-                                                <span
-                                                    key={`${post.id}-${tag.id}`}
-                                                    className="rounded-full border border-slate-200 px-2 py-0.5 text-[11px] text-slate-600"
-                                                >
-                                                    #{tag.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : null}
                                 </div>
                             </div>
 
-                            <div className="text-sm text-slate-700">
-                                {post.category?.name ?? "未分类"}
-                            </div>
-
-                            <div>
-                                <span
-                                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                                        post.status === "published"
-                                            ? "bg-emerald-50 text-emerald-700"
-                                            : "bg-amber-50 text-amber-700"
-                                    }`}
-                                >
-                                    {post.status === "published"
-                                        ? "已发布"
-                                        : "草稿"}
-                                </span>
-                            </div>
-
-                            <div className="text-sm text-slate-500">
-                                {formatPostDate(post.publishedAt)}
-                            </div>
-
-                            <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+                            <div className="flex flex-nowrap justify-start gap-2 overflow-x-auto lg:justify-end">
                                 {!post.deleted ? (
                                     <>
                                         <button
