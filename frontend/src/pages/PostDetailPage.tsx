@@ -1,6 +1,6 @@
 import { createHomeHref } from "../lib/hashRoute";
 import { formatDate } from "../lib/date";
-import type { Post } from "../types/post";
+import type { Post } from "../types/post.ts";
 import { WingLayout } from "../components/WingLayout";
 
 type PostDetailPageProps = {

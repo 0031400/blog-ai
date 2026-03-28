@@ -1,4 +1,4 @@
-import type { Post } from "../types/post";
+import type { Post } from "../types/post.ts";
 
 export const fallbackPosts: Post[] = [
     {
@@ -35,8 +35,7 @@ export const fallbackPosts: Post[] = [
         id: 2,
         title: "用 Go 和 SQLite 搭一个够用的内容后台",
         slug: "go-sqlite-content-backend",
-        excerpt:
-            "不追求过度设计，先把模型、迁移、查询接口和部署方式做稳定。",
+        excerpt: "不追求过度设计，先把模型、迁移、查询接口和部署方式做稳定。",
         content:
             "小型博客最适合从简单架构开始。Go 提供了直接、可靠的服务端能力，SQLite 则降低了部署和备份成本。先把文章模型、列表接口和初始化流程打通，再逐步加入鉴权、草稿和搜索，是更稳妥的节奏。",
         coverImage:

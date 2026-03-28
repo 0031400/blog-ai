@@ -9,10 +9,10 @@ import {
 
 import { formatDate } from "../lib/date";
 import { createHomeHref, createPostHref } from "../lib/hashRoute";
-import type { Category } from "../types/category";
-import type { Post } from "../types/post";
-import type { PostFormValues } from "../types/postForm";
-import type { Tag } from "../types/tag";
+import type { Category } from "../types/category.ts";
+import type { Post } from "../types/post.ts";
+import type { PostFormValues } from "../types/postForm.ts";
+import type { Tag } from "../types/tag.ts";
 
 type AdminPageProps = {
     apiBaseUrl: string;

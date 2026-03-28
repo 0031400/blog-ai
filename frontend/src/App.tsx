@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 
-import { fallbackPosts } from "./data/fallbackPosts";
+import { fallbackPosts } from "./data/fallbackPosts.ts";
 import { getPostSlugFromHash, isAdminRoute } from "./lib/hashRoute";
 import { AdminPage, HomePage, PostDetailPage } from "./pages";
 import { blogTheme } from "./theme/blogTheme";
-import type { Category } from "./types/category";
-import type { Post } from "./types/post";
-import type { Tag } from "./types/tag";
+import type { Category } from "./types/category.ts";
+import type { Post } from "./types/post.ts";
+import type { Tag } from "./types/tag.ts";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080";
 
@@ -85,9 +85,7 @@ function App() {
                 }
 
                 const payload: { data: Post[] } = await postsResponse.json();
-                if (payload.data.length > 0) {
-                    setPosts(payload.data.map(normalizePost));
-                }
+                setPosts(payload.data.map(normalizePost));
                 setError("");
             } catch (fetchError) {
                 if (
@@ -160,7 +158,7 @@ function App() {
                 }
 
                 const payload: { data: Post } = await response.json();
-                setActivePost(payload.data);
+                setActivePost(normalizePost(payload.data));
                 setDetailError("");
             } catch (fetchError) {
                 if (
