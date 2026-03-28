@@ -127,7 +127,7 @@ export function PostEditorSection({
                         onSubmit={onSubmit}
                         className="grid min-h-0 flex-1 lg:grid-cols-2"
                     >
-                        <div className="min-h-[420px] border-b border-slate-200 lg:border-b-0 lg:border-r">
+                        <div className="min-h-105 border-b border-slate-200 lg:border-b-0 lg:border-r">
                             <div className="border-b border-slate-100 px-5 py-4">
                                 <input
                                     value={values.title}
@@ -141,12 +141,12 @@ export function PostEditorSection({
                                     value={values.content}
                                     onChange={handleChange("content")}
                                     placeholder="开始编写你的 Markdown 内容..."
-                                    className="min-h-[520px] w-full resize-none border-0 p-0 font-mono text-[16px] leading-8 text-slate-800 outline-none placeholder:text-slate-300"
+                                    className="min-h-130 w-full resize-none border-0 p-0 font-mono text-[16px] leading-8 text-slate-800 outline-none placeholder:text-slate-300"
                                 />
                             </div>
                         </div>
 
-                        <div className="min-h-[420px] bg-white">
+                        <div className="min-h-105 bg-white">
                             <div className="border-b border-slate-100 px-6 py-4 text-sm text-slate-400">
                                 Slug: `/posts/{slugPreview}`
                             </div>

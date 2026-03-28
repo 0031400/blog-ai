@@ -38,7 +38,7 @@ export function EditorSettingsModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 px-4 py-8 backdrop-blur-[2px]">
-            <div className="w-full max-w-[720px] overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+            <div className="w-full max-w-180 overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
                 <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
                     <div className="text-[24px] font-semibold tracking-[-0.04em] text-slate-900">
                         文章设置

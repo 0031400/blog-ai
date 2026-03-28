@@ -10,45 +10,50 @@ type PostListCardProps = {
 
 export function PostListCard({ post }: PostListCardProps) {
     return (
-        <article className="overflow-hidden rounded-[28px] bg-white shadow-[0_12px_28px_rgba(96,121,148,0.12)]">
+        <article className="fuwari-card relative flex flex-col-reverse md:flex-row">
             <Link
                 to={createPostPath(post.slug)}
-                className="grid gap-5 px-5 py-5 md:grid-cols-[minmax(0,1fr)_260px] md:px-7"
+                className="grid gap-4 px-6 py-6 md:grid-cols-[minmax(0,1fr)_28%] md:px-9 md:pr-3 md:pt-7"
             >
                 <div className="min-w-0">
-                    <h2 className="flex items-center gap-3 text-[24px] font-semibold tracking-[-0.04em] text-slate-950 md:text-[28px]">
-                        <span className="inline-block h-8 w-1 rounded-full bg-sky-400" />
-                        <span className="truncate">{post.title}</span>
+                    <h2 className="fuwari-title-bar relative mb-3 block w-full text-3xl font-bold tracking-[-0.04em] text-slate-900 transition hover:text-sky-500 md:text-[2rem]">
+                        {post.title}
                     </h2>
 
-                    <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-400">
-                        <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-sky-500">
-                            ◫ {formatDate(post.publishedAt)}
+                    <div className="mb-3 flex flex-wrap items-center gap-y-2 text-sm text-slate-400">
+                        <span className="mr-4 inline-flex items-center">
+                            <span className="fuwari-meta-icon">◫</span>
+                            {formatDate(post.publishedAt)}
                         </span>
-                        <span className="inline-flex items-center gap-2">
+                        <span className="mr-4 inline-flex items-center before:mr-4 before:text-slate-300 before:content-['/']">
                             ◌ {post.category?.name ?? "未分类"}
                         </span>
-                        <span className="inline-flex items-center gap-2">
-                            # {(post.tags ?? []).map((tag) => tag.name).join(" / ")}
-                        </span>
+                        {(post.tags ?? []).length > 0 ? (
+                            <span className="inline-flex items-center before:mr-4 before:text-slate-300 before:content-['/']">
+                                #{" "}
+                                {(post.tags ?? [])
+                                    .map((tag) => tag.name)
+                                    .join(" / ")}
+                            </span>
+                        ) : null}
                     </div>
 
-                    <p className="mt-5 line-clamp-3 text-[15px] leading-8 text-slate-600">
+                    <p className="mb-3.5 pr-4 text-[15px] leading-8 text-slate-600">
                         {post.excerpt}
                     </p>
 
-                    <div className="mt-5 flex items-center gap-5 text-sm text-slate-400">
+                    <div className="flex gap-4 text-sm text-slate-400">
                         <span>◎ {Math.max(post.readingTime * 218, 656)}</span>
                         <span>|</span>
                         <span>◌ {Math.max(post.readingTime * 2, 3)}</span>
                     </div>
                 </div>
 
-                <div className="overflow-hidden rounded-[24px] bg-slate-100">
+                <div className="overflow-hidden rounded-2xl bg-slate-100 md:my-3">
                     <img
                         src={post.coverImage}
                         alt={post.title}
-                        className="h-[210px] w-full object-cover"
+                        className="h-52.5 w-full object-cover"
                     />
                 </div>
             </Link>

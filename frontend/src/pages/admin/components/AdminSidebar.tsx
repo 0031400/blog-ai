@@ -37,7 +37,7 @@ const navItems: Array<{
 
 export function AdminSidebar({ activeViewMode }: AdminSidebarProps) {
     return (
-        <aside className="hidden w-[264px] shrink-0 border-r border-slate-200 bg-white/95 md:flex md:flex-col">
+        <aside className="hidden w-66 shrink-0 border-r border-slate-200 bg-white/95 md:flex md:flex-col">
             <div className="border-b border-slate-200 px-6 py-5">
                 <Link
                     to={createHomePath()}
