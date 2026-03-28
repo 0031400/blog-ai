@@ -6,9 +6,10 @@ import {
     useMemo,
     useState,
 } from "react";
+import { Link } from "react-router-dom";
 
 import { formatDate } from "../lib/date";
-import { createHomeHref, createPostHref } from "../lib/hashRoute";
+import { createHomePath, createPostPath } from "../lib/routes.ts";
 import type { Category } from "../types/category.ts";
 import type { Post } from "../types/post.ts";
 import type { PostFormValues } from "../types/postForm.ts";
@@ -633,12 +634,12 @@ export function AdminPage({
         <div className="min-h-screen bg-slate-50 text-slate-800">
             <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200 bg-white md:flex">
                 <div className="px-5 py-5">
-                    <a
-                        href={createHomeHref()}
+                    <Link
+                        to={createHomePath()}
                         className="text-[28px] font-semibold tracking-[-0.05em] text-slate-900"
                     >
                         blog-ai
-                    </a>
+                    </Link>
                     <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
                         Console
                     </p>
@@ -683,19 +684,19 @@ export function AdminPage({
                             </h1>
                         </div>
                         <div className="flex flex-wrap gap-2">
-                            <a
-                                href={createHomeHref()}
+                            <Link
+                                to={createHomePath()}
                                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
                             >
                                 返回首页
-                            </a>
+                            </Link>
                             {selectedPost ? (
-                                <a
-                                    href={createPostHref(selectedPost.slug)}
+                                <Link
+                                    to={createPostPath(selectedPost.slug)}
                                     className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
                                 >
                                     预览文章
-                                </a>
+                                </Link>
                             ) : null}
                             <button
                                 type="button"
@@ -749,7 +750,7 @@ export function AdminPage({
                                             : "新建文章"}
                                     </div>
                                     <div className="mt-1 text-sm text-slate-500">
-                                        Slug 预览：`/#/posts/{slugPreview}`
+                                        Slug 预览：`/posts/{slugPreview}`
                                     </div>
                                 </div>
                                 <button

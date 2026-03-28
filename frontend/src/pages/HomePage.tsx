@@ -1,4 +1,6 @@
-import { createAdminHref, createPostHref } from "../lib/hashRoute";
+import { Link } from "react-router-dom";
+
+import { createAdminPath, createPostPath, homePath } from "../lib/routes.ts";
 import { formatDate } from "../lib/date";
 import type { Post } from "../types/post.ts";
 import { WingLayout } from "../components/WingLayout";
@@ -19,8 +21,8 @@ function ArticleCard({
 }) {
     return (
         <article className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-            <a
-                href={createPostHref(post.slug)}
+            <Link
+                to={createPostPath(post.slug)}
                 className={`grid items-start gap-4 ${featured ? "md:grid-cols-[minmax(0,1fr)_220px]" : "md:grid-cols-[minmax(0,1fr)_160px]"}`}
             >
                 <div className="min-w-0">
@@ -54,7 +56,7 @@ function ArticleCard({
                         className="h-full w-full object-cover"
                     />
                 </div>
-            </a>
+            </Link>
         </article>
     );
 }
@@ -77,8 +79,8 @@ export function HomePage({
                     </span>
                 </div>
                 {featuredPost ? (
-                    <a
-                        href={createPostHref(featuredPost.slug)}
+                    <Link
+                        to={createPostPath(featuredPost.slug)}
                         className="mt-3 block overflow-hidden rounded-xl border border-slate-200"
                     >
                         <div className="h-36">
@@ -99,7 +101,7 @@ export function HomePage({
                                 {featuredPost.excerpt}
                             </p>
                         </div>
-                    </a>
+                    </Link>
                 ) : (
                     <div className="mt-3 rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
                         暂无精选文章
@@ -154,24 +156,24 @@ export function HomePage({
             main={
                 <>
                     <section className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 p-2 shadow-sm">
-                        <a
-                            href="/#/"
+                        <Link
+                            to={homePath}
                             className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white"
                         >
                             文章
-                        </a>
-                        <a
-                            href="/#/"
+                        </Link>
+                        <Link
+                            to={homePath}
                             className="rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
                         >
                             笔记
-                        </a>
-                        <a
-                            href={createAdminHref()}
+                        </Link>
+                        <Link
+                            to={createAdminPath()}
                             className="ml-auto rounded-xl px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
                         >
                             写新文章
-                        </a>
+                        </Link>
                     </section>
 
                     <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
@@ -188,12 +190,12 @@ export function HomePage({
                                 </p>
                             </div>
                             {featuredPost ? (
-                                <a
-                                    href={createPostHref(featuredPost.slug)}
+                                <Link
+                                    to={createPostPath(featuredPost.slug)}
                                     className="rounded-full bg-rose-500 px-4 py-2 text-sm text-white"
                                 >
                                     进入精选文章
-                                </a>
+                                </Link>
                             ) : null}
                         </div>
 

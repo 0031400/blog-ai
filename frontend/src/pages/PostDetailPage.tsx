@@ -1,4 +1,6 @@
-import { createHomeHref } from "../lib/hashRoute";
+import { Link } from "react-router-dom";
+
+import { createHomePath } from "../lib/routes.ts";
 import { formatDate } from "../lib/date";
 import type { Post } from "../types/post.ts";
 import { WingLayout } from "../components/WingLayout";
@@ -77,7 +79,7 @@ export function PostDetailPage({
                             Hash Route
                         </div>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
-                            仍然沿用 `/#/posts/:slug` 路由。
+                            使用 React Router 管理 `/posts/:slug` 路由。
                         </p>
                     </div>
                 </div>
@@ -91,12 +93,12 @@ export function PostDetailPage({
             main={
                 <>
                     <section className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 p-2 shadow-sm">
-                        <a
-                            href={createHomeHref()}
+                        <Link
+                            to={createHomePath()}
                             className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white"
                         >
                             返回首页
-                        </a>
+                        </Link>
                         <span className="rounded-xl px-3 py-2 text-sm text-slate-500">
                             {detailLoading ? "正在同步" : "文章详情"}
                         </span>

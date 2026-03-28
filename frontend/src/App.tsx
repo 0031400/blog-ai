@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 
 import { fallbackPosts } from "./data/fallbackPosts.ts";
-import { getPostSlugFromHash, isAdminRoute } from "./lib/hashRoute";
 import { AdminPage, HomePage, PostDetailPage } from "./pages";
 import { blogTheme } from "./theme/blogTheme";
 import type { Category } from "./types/category.ts";
@@ -30,23 +30,93 @@ function normalizePost(post: Post): Post {
     };
 }
 
+function PostDetailRoute({
+    apiBaseUrl,
+    posts,
+}: {
+    apiBaseUrl: string;
+    posts: Post[];
+}) {
+    const { slug = "" } = useParams();
+    const [activePost, setActivePost] = useState<Post | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [detailError, setDetailError] = useState("");
+
+    useEffect(() => {
+        if (!slug) {
+            setActivePost(null);
+            setDetailError("");
+            return;
+        }
+
+        const cachedPost = posts.find(
+            (post) =>
+                post.slug === slug &&
+                !post.deleted &&
+                post.status === "published" &&
+                post.visibility === "public",
+        );
+        if (cachedPost) {
+            setActivePost(cachedPost);
+        }
+
+        const controller = new AbortController();
+
+        const loadPost = async () => {
+            setDetailLoading(true);
+
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/posts/${slug}`, {
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                const payload: { data: Post } = await response.json();
+                setActivePost(normalizePost(payload.data));
+                setDetailError("");
+            } catch (fetchError) {
+                if (
+                    fetchError instanceof DOMException &&
+                    fetchError.name === "AbortError"
+                ) {
+                    return;
+                }
+
+                if (!cachedPost) {
+                    setDetailError("这篇文章暂时无法加载。");
+                }
+            } finally {
+                setDetailLoading(false);
+            }
+        };
+
+        void loadPost();
+
+        return () => {
+            controller.abort();
+        };
+    }, [apiBaseUrl, posts, slug]);
+
+    return (
+        <PostDetailPage
+            detailError={detailError}
+            detailLoading={detailLoading}
+            post={activePost}
+        />
+    );
+}
+
 function App() {
     const [posts, setPosts] = useState<Post[]>(() =>
         fallbackPosts.map(normalizePost),
     );
     const [categories, setCategories] = useState<Category[]>([]);
     const [tags, setTags] = useState<Tag[]>([]);
-    const [activeSlug, setActiveSlug] = useState(() =>
-        getPostSlugFromHash(window.location.hash),
-    );
-    const [isAdminView, setIsAdminView] = useState(() =>
-        isAdminRoute(window.location.hash),
-    );
-    const [activePost, setActivePost] = useState<Post | null>(null);
     const [loading, setLoading] = useState(true);
-    const [detailLoading, setDetailLoading] = useState(false);
     const [error, setError] = useState("");
-    const [detailError, setDetailError] = useState("");
 
     useEffect(() => {
         const controller = new AbortController();
@@ -108,81 +178,6 @@ function App() {
         };
     }, []);
 
-    useEffect(() => {
-        const syncFromHash = () => {
-            setActiveSlug(getPostSlugFromHash(window.location.hash));
-            setIsAdminView(isAdminRoute(window.location.hash));
-        };
-
-        window.addEventListener("hashchange", syncFromHash);
-        return () => {
-            window.removeEventListener("hashchange", syncFromHash);
-        };
-    }, []);
-
-    useEffect(() => {
-        if (!activeSlug) {
-            setActivePost(null);
-            setDetailError("");
-            return;
-        }
-
-        const cachedPost = posts.find(
-            (post) =>
-                post.slug === activeSlug &&
-                !post.deleted &&
-                post.status === "published" &&
-                post.visibility === "public",
-        );
-        if (cachedPost) {
-            setActivePost(cachedPost);
-        }
-
-        const controller = new AbortController();
-
-        const loadPost = async () => {
-            setDetailLoading(true);
-
-            try {
-                const response = await fetch(
-                    `${apiBaseUrl}/api/posts/${activeSlug}`,
-                    {
-                        signal: controller.signal,
-                    },
-                );
-
-                if (!response.ok) {
-                    throw new Error(
-                        `Request failed with status ${response.status}`,
-                    );
-                }
-
-                const payload: { data: Post } = await response.json();
-                setActivePost(normalizePost(payload.data));
-                setDetailError("");
-            } catch (fetchError) {
-                if (
-                    fetchError instanceof DOMException &&
-                    fetchError.name === "AbortError"
-                ) {
-                    return;
-                }
-
-                if (!cachedPost) {
-                    setDetailError("这篇文章暂时无法加载。");
-                }
-            } finally {
-                setDetailLoading(false);
-            }
-        };
-
-        void loadPost();
-
-        return () => {
-            controller.abort();
-        };
-    }, [activeSlug, posts]);
-
     const publicPosts = useMemo(
         () =>
             posts.filter(
@@ -205,7 +200,6 @@ function App() {
                 (currentPost) => currentPost.slug !== normalizedPost.slug,
             ),
         ]);
-        setActivePost(normalizedPost);
     };
 
     const handlePostUpdated = (post: Post) => {
@@ -223,41 +217,44 @@ function App() {
                         new Date(left.publishedAt).getTime(),
                 ),
         );
-        setActivePost((currentPost) =>
-            currentPost?.id === normalizedPost.id
-                ? normalizedPost
-                : currentPost,
-        );
     };
 
     return (
         <ThemeProvider theme={blogTheme}>
             <CssBaseline />
-            {isAdminView ? (
-                <AdminPage
-                    apiBaseUrl={apiBaseUrl}
-                    categories={categories}
-                    onPostCreated={handlePostCreated}
-                    onPostUpdated={handlePostUpdated}
-                    posts={posts}
-                    setCategories={setCategories}
-                    setTags={setTags}
-                    tags={tags}
+            <Routes>
+                <Route
+                    path="/"
+                    element={
+                        <HomePage
+                            error={error}
+                            featuredPost={featuredPost}
+                            latestPosts={latestPosts}
+                            loading={loading}
+                        />
+                    }
                 />
-            ) : activeSlug ? (
-                <PostDetailPage
-                    detailError={detailError}
-                    detailLoading={detailLoading}
-                    post={activePost}
+                <Route
+                    path="/admin"
+                    element={
+                        <AdminPage
+                            apiBaseUrl={apiBaseUrl}
+                            categories={categories}
+                            onPostCreated={handlePostCreated}
+                            onPostUpdated={handlePostUpdated}
+                            posts={posts}
+                            setCategories={setCategories}
+                            setTags={setTags}
+                            tags={tags}
+                        />
+                    }
                 />
-            ) : (
-                <HomePage
-                    error={error}
-                    featuredPost={featuredPost}
-                    latestPosts={latestPosts}
-                    loading={loading}
+                <Route
+                    path="/posts/:slug"
+                    element={<PostDetailRoute apiBaseUrl={apiBaseUrl} posts={posts} />}
                 />
-            )}
+                <Route path="*" element={<Navigate replace to="/" />} />
+            </Routes>
         </ThemeProvider>
     );
 }
