@@ -1,0 +1,38 @@
+type AdminOverviewBarProps = {
+    drafts: number;
+    published: number;
+    recycled: number;
+    total: number;
+};
+
+export function AdminOverviewBar({
+    drafts,
+    published,
+    recycled,
+    total,
+}: AdminOverviewBarProps) {
+    return (
+        <section className="rounded-2xl border border-slate-200 bg-white">
+            <div className="grid gap-px bg-slate-200 md:grid-cols-4">
+                {[
+                    ["总文章", total],
+                    ["已发布", published],
+                    ["草稿", drafts],
+                    ["回收站", recycled],
+                ].map(([label, value]) => (
+                    <div
+                        key={label}
+                        className="bg-white px-5 py-4 first:rounded-l-2xl last:rounded-r-2xl"
+                    >
+                        <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                            {label}
+                        </div>
+                        <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-900">
+                            {value}
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}

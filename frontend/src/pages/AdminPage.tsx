@@ -1,31 +1,23 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-    Link,
-    useLocation,
-    useNavigate,
-    useSearchParams,
-} from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
 import {
     adminPostEditorPath,
     createAdminPath,
-    createAdminCategoriesPath,
     createAdminPostEditorPath,
-    createAdminRecyclePath,
-    createAdminTagsPath,
-    createHomePath,
-    createPostPath,
 } from "../lib/routes.ts";
 import {
     type StatusFilter,
     type ViewMode,
     type VisibilityFilter,
-    viewTitle,
 } from "./admin/shared.ts";
 import { CategoriesSection } from "./admin/components/CategoriesSection.tsx";
 import { AdminLoginSection } from "./admin/components/AdminLoginSection.tsx";
+import { AdminOverviewBar } from "./admin/components/AdminOverviewBar.tsx";
+import { AdminSidebar } from "./admin/components/AdminSidebar.tsx";
+import { AdminTopbar } from "./admin/components/AdminTopbar.tsx";
 import { PostEditorSection } from "./admin/components/PostEditorSection.tsx";
 import { PostsSection } from "./admin/components/PostsSection.tsx";
 import { TagsSection } from "./admin/components/TagsSection.tsx";
@@ -936,204 +928,126 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     }
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-800">
-            <aside className="fixed inset-y-0 left-0 hidden w-64 flex-col border-r border-slate-200 bg-white md:flex">
-                <div className="px-5 py-5">
-                    <Link
-                        to={createHomePath()}
-                        className="text-[28px] font-semibold tracking-[-0.05em] text-slate-900"
-                    >
-                        blog-ai
-                    </Link>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                        Console
-                    </p>
-                </div>
+        <div className="min-h-screen bg-[#eef3fa] text-slate-800">
+            <div className="min-h-screen md:flex">
+                <AdminSidebar activeViewMode={activeViewMode} />
 
-                <nav className="mt-4 px-3">
-                    <div className="mb-2 px-2 text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                        Content
-                    </div>
-                    {[
-                        ["posts", "文章", createAdminPath()],
-                        ["recycle", "回收站", createAdminRecyclePath()],
-                        ["categories", "分类", createAdminCategoriesPath()],
-                        ["tags", "标签", createAdminTagsPath()],
-                    ].map(([key, label, path]) => (
-                        <Link
-                            key={key}
-                            to={path}
-                            className={`mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm ${
-                                activeViewMode === key
-                                    ? "bg-slate-900 text-white"
-                                    : "text-slate-600 hover:bg-slate-100"
-                            }`}
-                        >
-                            <span>▣</span>
-                            <span>{label}</span>
-                        </Link>
-                    ))}
-                </nav>
-            </aside>
+                <main className="min-w-0 flex-1">
+                    <AdminTopbar
+                        editorOpen={editorOpen}
+                        onCreatePost={openCreateEditor}
+                        onLogout={handleLogout}
+                        selectedPost={selectedPost}
+                        viewMode={activeViewMode}
+                    />
 
-            <main className="md:ml-64">
-                <div className="mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-6">
-                    <header className="flex flex-col gap-4 border-b border-slate-200 pb-4 md:flex-row md:items-center md:justify-between">
-                        <div>
-                            <div className="text-sm text-slate-500">
-                                Contents / Management
-                            </div>
-                            <h1 className="mt-1 text-[28px] font-semibold tracking-[-0.04em] text-slate-900">
-                                {viewTitle(
-                                    editorOpen ? "posts" : activeViewMode,
-                                )}
-                            </h1>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                            <Link
-                                to={createHomePath()}
-                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
-                            >
-                                返回首页
-                            </Link>
-                            {selectedPost ? (
-                                <Link
-                                    to={createPostPath(selectedPost.slug)}
-                                    className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
-                                >
-                                    预览文章
-                                </Link>
-                            ) : null}
-                            <button
-                                type="button"
-                                onClick={openCreateEditor}
-                                className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
-                            >
-                                新建文章
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleLogout}
-                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
-                            >
-                                退出登录
-                            </button>
-                        </div>
-                    </header>
-
-                    <section className="mt-4 grid gap-3 md:grid-cols-4">
-                        {[
-                            ["总文章", `${stats.total}`],
-                            ["已发布", `${stats.published}`],
-                            ["草稿", `${stats.drafts}`],
-                            ["回收站", `${stats.recycled}`],
-                        ].map(([label, value]) => (
-                            <div
-                                key={label}
-                                className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                            >
-                                <div className="text-xs uppercase tracking-[0.14em] text-slate-400">
-                                    {label}
-                                </div>
-                                <div className="mt-2 text-lg font-semibold text-slate-900">
-                                    {value}
-                                </div>
-                            </div>
-                        ))}
-                    </section>
-
-                    {error ? (
-                        <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
-                            {error}
-                        </div>
-                    ) : null}
-                    {successMessage ? (
-                        <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                            {successMessage}
-                        </div>
-                    ) : null}
-                    {loading ? (
-                        <div className="mt-4 rounded-lg border border-slate-200 bg-white px-3 py-4 text-sm text-slate-500 shadow-sm">
-                            正在加载后台内容...
-                        </div>
-                    ) : null}
-
-                    {editorOpen ? (
-                        <PostEditorSection
-                            busy={busy}
-                            categories={categories}
-                            handleChange={handleChange}
-                            handleSoftDelete={handleSoftDelete}
-                            isEditingPost={isEditingPost}
-                            resetPostForm={resetPostForm}
-                            selectedPost={selectedPost}
-                            slugPreview={slugPreview}
-                            submitting={submitting}
-                            tags={tags}
-                            toggleTagSelection={toggleTagSelection}
-                            values={values}
-                            onSubmit={handleSubmit}
-                        />
-                    ) : null}
-
-                    {!editorOpen &&
-                        (activeViewMode === "posts" ||
-                            activeViewMode === "recycle") && (
-                            <PostsSection
-                                busy={busy}
-                                filteredPosts={filteredPosts}
-                                formatPostDate={formatDate}
-                                handleRestore={handleRestore}
-                                handleSoftDelete={handleSoftDelete}
-                                keyword={keyword}
-                                openEditEditor={openEditEditor}
-                                quickUpdatePost={quickUpdatePost}
-                                setKeyword={setKeyword}
-                                setStatusFilter={setStatusFilter}
-                                setVisibilityFilter={setVisibilityFilter}
-                                statusFilter={statusFilter}
-                                viewMode={activeViewMode}
-                                visibilityFilter={visibilityFilter}
+                    <div className="px-4 py-4 md:px-6 md:py-6">
+                        {!editorOpen ? (
+                            <AdminOverviewBar
+                                drafts={stats.drafts}
+                                published={stats.published}
+                                recycled={stats.recycled}
+                                total={stats.total}
                             />
-                        )}
+                        ) : null}
 
-                    {!editorOpen && activeViewMode === "categories" && (
-                        <CategoriesSection
-                            busy={busy}
-                            categories={categories}
-                            categoryName={categoryName}
-                            categorySlug={categorySlug}
-                            categoryUsage={categoryUsage}
-                            deleteCategory={deleteCategory}
-                            editingCategoryId={editingCategoryId}
-                            resetCategoryForm={resetCategoryForm}
-                            setCategoryName={setCategoryName}
-                            setCategorySlug={setCategorySlug}
-                            setEditingCategoryId={setEditingCategoryId}
-                            submitCategory={submitCategory}
-                        />
-                    )}
+                        {error ? (
+                            <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                                {error}
+                            </div>
+                        ) : null}
+                        {successMessage ? (
+                            <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                                {successMessage}
+                            </div>
+                        ) : null}
+                        {loading ? (
+                            <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
+                                正在加载后台内容...
+                            </div>
+                        ) : null}
 
-                    {!editorOpen && activeViewMode === "tags" && (
-                        <TagsSection
-                            busy={busy}
-                            deleteTag={deleteTag}
-                            editingTagId={editingTagId}
-                            resetTagForm={resetTagForm}
-                            setEditingTagId={setEditingTagId}
-                            setTagColor={setTagColor}
-                            setTagName={setTagName}
-                            setTagSlug={setTagSlug}
-                            submitTag={submitTag}
-                            tagColor={tagColor}
-                            tagName={tagName}
-                            tagSlug={tagSlug}
-                            tagUsage={tagUsage}
-                            tags={tags}
-                        />
-                    )}
-                </div>
-            </main>
+                        <div className="mt-4">
+                            {editorOpen ? (
+                                <PostEditorSection
+                                    busy={busy}
+                                    categories={categories}
+                                    handleChange={handleChange}
+                                    handleSoftDelete={handleSoftDelete}
+                                    isEditingPost={isEditingPost}
+                                    resetPostForm={resetPostForm}
+                                    selectedPost={selectedPost}
+                                    slugPreview={slugPreview}
+                                    submitting={submitting}
+                                    tags={tags}
+                                    toggleTagSelection={toggleTagSelection}
+                                    values={values}
+                                    onSubmit={handleSubmit}
+                                />
+                            ) : null}
+
+                            {!editorOpen &&
+                                (activeViewMode === "posts" ||
+                                    activeViewMode === "recycle") && (
+                                    <PostsSection
+                                        busy={busy}
+                                        filteredPosts={filteredPosts}
+                                        formatPostDate={formatDate}
+                                        handleRestore={handleRestore}
+                                        handleSoftDelete={handleSoftDelete}
+                                        keyword={keyword}
+                                        openEditEditor={openEditEditor}
+                                        quickUpdatePost={quickUpdatePost}
+                                        setKeyword={setKeyword}
+                                        setStatusFilter={setStatusFilter}
+                                        setVisibilityFilter={
+                                            setVisibilityFilter
+                                        }
+                                        statusFilter={statusFilter}
+                                        viewMode={activeViewMode}
+                                        visibilityFilter={visibilityFilter}
+                                    />
+                                )}
+
+                            {!editorOpen && activeViewMode === "categories" && (
+                                <CategoriesSection
+                                    busy={busy}
+                                    categories={categories}
+                                    categoryName={categoryName}
+                                    categorySlug={categorySlug}
+                                    categoryUsage={categoryUsage}
+                                    deleteCategory={deleteCategory}
+                                    editingCategoryId={editingCategoryId}
+                                    resetCategoryForm={resetCategoryForm}
+                                    setCategoryName={setCategoryName}
+                                    setCategorySlug={setCategorySlug}
+                                    setEditingCategoryId={setEditingCategoryId}
+                                    submitCategory={submitCategory}
+                                />
+                            )}
+
+                            {!editorOpen && activeViewMode === "tags" && (
+                                <TagsSection
+                                    busy={busy}
+                                    deleteTag={deleteTag}
+                                    editingTagId={editingTagId}
+                                    resetTagForm={resetTagForm}
+                                    setEditingTagId={setEditingTagId}
+                                    setTagColor={setTagColor}
+                                    setTagName={setTagName}
+                                    setTagSlug={setTagSlug}
+                                    submitTag={submitTag}
+                                    tagColor={tagColor}
+                                    tagName={tagName}
+                                    tagSlug={tagSlug}
+                                    tagUsage={tagUsage}
+                                    tags={tags}
+                                />
+                            )}
+                        </div>
+                    </div>
+                </main>
+            </div>
         </div>
     );
 }
