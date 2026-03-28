@@ -9,7 +9,7 @@ export function BlogTopbar() {
             <div className="fuwari-card flex flex-col gap-4 bg-white/95 px-5 py-4 backdrop-blur md:flex-row md:items-center md:justify-between md:px-8">
                 <Link
                     to={homePath}
-                    className="flex items-center gap-3 text-[17px] font-semibold tracking-[-0.03em] text-sky-500"
+                    className="fuwari-font-title flex items-center gap-3 text-[17px] font-semibold tracking-[-0.03em] text-sky-500"
                 >
                     <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-sky-400 text-sm font-bold">
                         ⌂
@@ -17,7 +17,7 @@ export function BlogTopbar() {
                     <span>{siteMeta.title}</span>
                 </Link>
 
-                <nav className="flex flex-wrap items-center gap-8 text-[15px] font-semibold text-slate-700">
+                <nav className="fuwari-font-ui flex flex-wrap items-center gap-8 text-[15px] font-semibold text-slate-700">
                     <NavLink
                         to={homePath}
                         end

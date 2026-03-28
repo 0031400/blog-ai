@@ -142,7 +142,7 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                                     </span>
                                 </div>
 
-                                <h1 className="fuwari-title-bar relative mt-5 block text-[34px] font-bold tracking-[-0.05em] text-slate-950 md:text-[44px]">
+                                <h1 className="fuwari-font-title fuwari-title-bar relative mt-5 block text-[34px] font-bold tracking-[-0.055em] text-slate-950 md:text-[44px]">
                                     {post.title}
                                 </h1>
 

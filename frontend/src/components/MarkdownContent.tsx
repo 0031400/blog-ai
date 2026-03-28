@@ -11,28 +11,30 @@ export function MarkdownContent({
     content,
 }: MarkdownContentProps) {
     return (
-        <div className={`max-w-none text-slate-700 ${className}`}>
+        <div
+            className={`fuwari-font-reading max-w-none text-slate-700 ${className}`}
+        >
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                     h1: ({ children }) => (
-                        <h1 className="mt-10 text-3xl font-bold tracking-[-0.05em] text-slate-950 first:mt-0 md:text-4xl">
+                        <h1 className="fuwari-font-title mt-10 text-3xl font-bold tracking-[-0.05em] text-slate-950 first:mt-0 md:text-4xl">
                             {children}
                         </h1>
                     ),
                     h2: ({ children }) => (
-                        <h2 className="mt-12 flex items-center gap-3 text-2xl font-bold tracking-[-0.04em] text-slate-950 md:text-3xl">
+                        <h2 className="fuwari-font-title mt-12 flex items-center gap-3 text-2xl font-bold tracking-[-0.04em] text-slate-950 md:text-3xl">
                             <span className="inline-block h-6 w-1 rounded-full bg-sky-400" />
                             <span>{children}</span>
                         </h2>
                     ),
                     h3: ({ children }) => (
-                        <h3 className="mt-9 text-xl font-bold tracking-[-0.03em] text-slate-900 md:text-2xl">
+                        <h3 className="fuwari-font-title mt-9 text-xl font-bold tracking-[-0.03em] text-slate-900 md:text-2xl">
                             {children}
                         </h3>
                     ),
                     h4: ({ children }) => (
-                        <h4 className="mt-7 text-lg font-semibold text-slate-900 md:text-xl">
+                        <h4 className="fuwari-font-title mt-7 text-lg font-semibold text-slate-900 md:text-xl">
                             {children}
                         </h4>
                     ),
@@ -86,14 +88,14 @@ export function MarkdownContent({
 
                         if (isBlock) {
                             return (
-                                <code className="block overflow-x-auto rounded-3xl bg-slate-950 px-5 py-4 text-sm leading-7 text-slate-100">
+                                <code className="fuwari-font-mono block overflow-x-auto rounded-3xl bg-slate-950 px-5 py-4 text-sm leading-7 text-slate-100">
                                     {children}
                                 </code>
                             );
                         }
 
                         return (
-                            <code className="rounded-lg bg-sky-50 px-1.5 py-0.5 text-[0.92em] text-sky-700">
+                            <code className="fuwari-font-mono rounded-lg bg-sky-50 px-1.5 py-0.5 text-[0.92em] text-sky-700">
                                 {children}
                             </code>
                         );

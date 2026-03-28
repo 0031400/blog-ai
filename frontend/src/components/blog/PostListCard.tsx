@@ -16,7 +16,7 @@ export function PostListCard({ post }: PostListCardProps) {
                 className="grid gap-4 px-6 py-6 md:grid-cols-[minmax(0,1fr)_28%] md:px-9 md:pr-3 md:pt-7"
             >
                 <div className="min-w-0">
-                    <h2 className="fuwari-title-bar relative mb-3 block w-full text-3xl font-bold tracking-[-0.04em] text-slate-900 transition hover:text-sky-500 md:text-[2rem]">
+                    <h2 className="fuwari-font-title fuwari-title-bar relative mb-3 block w-full text-3xl font-bold tracking-[-0.045em] text-slate-900 transition hover:text-sky-500 md:text-[2rem]">
                         {post.title}
                     </h2>
 
@@ -38,7 +38,7 @@ export function PostListCard({ post }: PostListCardProps) {
                         ) : null}
                     </div>
 
-                    <p className="mb-3.5 pr-4 text-[15px] leading-8 text-slate-600">
+                    <p className="fuwari-font-reading mb-3.5 pr-4 text-[16px] leading-8 text-slate-600">
                         {post.excerpt}
                     </p>
 

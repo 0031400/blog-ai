@@ -14,7 +14,7 @@ function SidebarCard({
 }) {
     return (
         <section className="fuwari-card-soft px-4 py-5">
-            <h3 className="relative ml-4 flex items-center gap-3 text-lg font-bold text-slate-900">
+            <h3 className="fuwari-font-title relative ml-4 flex items-center gap-3 text-lg font-bold tracking-[-0.02em] text-slate-900">
                 <span className="absolute -left-4 top-1 inline-block h-4 w-1 rounded-full bg-sky-400" />
                 <span>{title}</span>
             </h3>
@@ -37,11 +37,11 @@ export function BlogSidebar({ categories, tags }: BlogSidebarProps) {
                     </div>
                 </div>
                 <div className="px-4 pb-5 text-center">
-                    <div className="text-lg font-semibold text-slate-950">
+                    <div className="fuwari-font-title text-xl font-bold tracking-[-0.03em] text-slate-950">
                         {siteMeta.author.name}
                     </div>
                     <div className="mx-auto mt-3 h-1 w-5 rounded-full bg-sky-400" />
-                    <div className="mx-auto mt-3 max-w-[13rem] text-sm leading-6 text-slate-400">
+                    <div className="fuwari-font-ui mx-auto mt-3 max-w-[13rem] text-sm leading-6 text-slate-400">
                         {siteMeta.author.tagline}
                     </div>
                     <div className="mt-5 flex items-center justify-center gap-3">
