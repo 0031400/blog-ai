@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { BlogFrame } from "../components/blog/BlogFrame.tsx";
 import { BlogSidebar } from "../components/blog/BlogSidebar.tsx";
@@ -48,6 +48,7 @@ function buildTagItems(posts: Post[]) {
 }
 
 export function HomePage({ apiBaseUrl }: HomePageProps) {
+    const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [posts, setPosts] = useState<Post[]>([]);
     const [totalPosts, setTotalPosts] = useState(0);
@@ -110,6 +111,21 @@ export function HomePage({ apiBaseUrl }: HomePageProps) {
         [totalPosts],
     );
     const safePage = Math.min(currentPage, totalPages);
+    const [pageInput, setPageInput] = useState(String(safePage));
+
+    useEffect(() => {
+        setPageInput(String(safePage));
+    }, [safePage]);
+
+    const submitPage = () => {
+        const nextPage = Number(pageInput);
+        if (!Number.isInteger(nextPage) || nextPage < 1) {
+            setPageInput(String(safePage));
+            return;
+        }
+
+        navigate(createHomePath(Math.min(nextPage, totalPages)));
+    };
 
     return (
         <BlogFrame
@@ -162,6 +178,27 @@ export function HomePage({ apiBaseUrl }: HomePageProps) {
                                 >
                                     下一页
                                 </Link>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        value={pageInput}
+                                        onChange={(event) =>
+                                            setPageInput(
+                                                event.target.value.replace(
+                                                    /\D/g,
+                                                    "",
+                                                ),
+                                            )
+                                        }
+                                        onBlur={submitPage}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                submitPage();
+                                            }
+                                        }}
+                                        className="w-14 rounded-md border border-slate-200 px-2 py-1.5 text-center text-slate-700 outline-none"
+                                    />
+                                    <span>页</span>
+                                </div>
                             </div>
                         </section>
                     ) : null}
