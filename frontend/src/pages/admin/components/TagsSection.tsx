@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import type { Tag } from "../../../types/tag.ts";
 import {
+    primaryButtonClass,
     dangerButtonClass,
     inputClass,
     secondaryButtonClass,
@@ -77,7 +78,7 @@ export function TagsSection({
                         <button
                             type="submit"
                             disabled={busy}
-                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
+                            className={primaryButtonClass}
                         >
                             保存
                         </button>

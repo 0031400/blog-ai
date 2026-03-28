@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 
 import type { Post } from "../../../types/post.ts";
 import {
+    adminPanelClass,
     dangerButtonClass,
     inputClass,
     secondaryButtonClass,
@@ -48,20 +49,32 @@ export function PostsSection({
     visibilityFilter,
 }: PostsSectionProps) {
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 bg-slate-50/70 px-4 py-3">
+        <section className={adminPanelClass}>
+            <div className="border-b border-slate-200 bg-white px-4 py-3">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                    <input
-                        value={keyword}
-                        onChange={(event) => setKeyword(event.target.value)}
-                        placeholder="输入关键词搜索"
-                        className={`${inputClass} min-w-60 max-w-xs bg-white`}
-                    />
+                    <div className="flex flex-1 items-center gap-3">
+                        <div className="hidden lg:block">
+                            <label className="inline-flex items-center">
+                                <input
+                                    type="checkbox"
+                                    className="h-4 w-4 rounded border-slate-300"
+                                />
+                            </label>
+                        </div>
+                        <input
+                            value={keyword}
+                            onChange={(event) => setKeyword(event.target.value)}
+                            placeholder="输入关键词搜索"
+                            className={`${inputClass} min-w-60 max-w-xs bg-white`}
+                        />
+                    </div>
                     <div className="flex flex-wrap items-center gap-2 text-sm">
                         <select
                             value={statusFilter}
                             onChange={(event) =>
-                                setStatusFilter(event.target.value as StatusFilter)
+                                setStatusFilter(
+                                    event.target.value as StatusFilter,
+                                )
                             }
                             className="rounded-xl border border-transparent bg-transparent px-3 py-2 text-slate-700 outline-none hover:border-slate-200 hover:bg-white"
                         >
@@ -82,11 +95,17 @@ export function PostsSection({
                             <option value="public">可见性: 公开</option>
                             <option value="private">可见性: 私密</option>
                         </select>
+                        <button
+                            type="button"
+                            className="rounded-md p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-800"
+                        >
+                            ↻
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div className="hidden grid-cols-[minmax(0,1.7fr)_130px_130px_120px_170px] gap-4 border-b border-slate-200 bg-white px-6 py-4 text-sm font-medium text-slate-500 lg:grid">
+            <div className="hidden grid-cols-[minmax(0,1.7fr)_130px_130px_120px_170px] gap-4 border-b border-slate-200 bg-slate-50/60 px-6 py-4 text-sm font-medium text-slate-500 lg:grid">
                 <div>文章</div>
                 <div>分类</div>
                 <div>状态</div>
@@ -96,13 +115,22 @@ export function PostsSection({
 
             <div className="divide-y divide-slate-100">
                 {filteredPosts.map((post) => (
-                    <article key={post.id} className="px-4 py-4 lg:px-6">
+                    <article
+                        key={post.id}
+                        className="px-4 py-4 transition hover:bg-slate-50/70 lg:px-6"
+                    >
                         <div className="grid gap-4 lg:grid-cols-[minmax(0,1.7fr)_130px_130px_120px_170px] lg:items-center">
                             <div className="flex min-w-0 gap-4">
+                                <div className="hidden pt-1 lg:block">
+                                    <input
+                                        type="checkbox"
+                                        className="h-4 w-4 rounded border-slate-300"
+                                    />
+                                </div>
                                 <img
                                     src={post.coverImage}
                                     alt={post.title}
-                                    className="h-16 w-16 rounded-xl object-cover"
+                                    className="h-16 w-16 rounded-md object-cover"
                                 />
                                 <div className="min-w-0">
                                     <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -120,12 +148,17 @@ export function PostsSection({
                                                 : "私密"}
                                         </span>
                                     </div>
-                                    <h2 className="mt-1 truncate text-base font-semibold text-slate-900">
+                                    <h2 className="mt-1 truncate text-lg font-medium text-slate-900">
                                         {post.title}
                                     </h2>
-                                    <p className="mt-1 line-clamp-2 text-sm leading-6 text-slate-500">
-                                        {post.excerpt}
-                                    </p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+                                        <span>
+                                            分类：
+                                            {post.category?.name ?? "未分类"}
+                                        </span>
+                                        <span>访问量 0</span>
+                                        <span>评论 0</span>
+                                    </div>
                                     {(post.tags ?? []).length ? (
                                         <div className="mt-2 flex flex-wrap gap-1.5">
                                             {(post.tags ?? []).map((tag) => (
@@ -223,7 +256,9 @@ export function PostsSection({
                                         </button>
                                         <button
                                             type="button"
-                                            onClick={() => handleSoftDelete(post)}
+                                            onClick={() =>
+                                                handleSoftDelete(post)
+                                            }
                                             disabled={busy}
                                             className={dangerButtonClass}
                                         >
@@ -252,6 +287,26 @@ export function PostsSection({
                             : "没有匹配的文章。"}
                     </div>
                 ) : null}
+            </div>
+
+            <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 text-sm text-slate-500 md:flex-row md:items-center md:justify-between">
+                <div>共 {filteredPosts.length} 项数据</div>
+                <div className="flex items-center gap-3">
+                    <button
+                        type="button"
+                        className="rounded-md border border-slate-200 px-3 py-1.5 hover:bg-slate-50"
+                    >
+                        ‹
+                    </button>
+                    <button
+                        type="button"
+                        className="rounded-md border border-slate-200 px-3 py-1.5 hover:bg-slate-50"
+                    >
+                        ›
+                    </button>
+                    <div>1 / 1 页</div>
+                    <div>20 条 / 页</div>
+                </div>
             </div>
         </section>
     );

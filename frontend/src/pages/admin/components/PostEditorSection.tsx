@@ -5,6 +5,11 @@ import type { Category } from "../../../types/category.ts";
 import type { Post } from "../../../types/post.ts";
 import type { PostFormValues } from "../../../types/postForm.ts";
 import type { Tag } from "../../../types/tag.ts";
+import {
+    adminPanelClass,
+    ghostButtonClass,
+    primaryButtonClass,
+} from "../shared.ts";
 import { EditorSettingsModal } from "./EditorSettingsModal.tsx";
 
 type PostEditorSectionProps = {
@@ -23,7 +28,6 @@ type PostEditorSectionProps = {
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     resetPostForm: () => void;
     selectedPost: Post | null;
-    slugPreview: string;
     submitting: boolean;
     tags: Tag[];
     values: PostFormValues;
@@ -39,7 +43,6 @@ export function PostEditorSection({
     onSubmit,
     resetPostForm,
     selectedPost,
-    slugPreview,
     submitting,
     tags,
     values,
@@ -53,19 +56,22 @@ export function PostEditorSection({
 
     return (
         <>
-            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="flex min-h-[calc(100vh-180px)] flex-col">
+            <section className={adminPanelClass}>
+                <div className="flex min-h-[calc(100vh-9rem)] flex-col">
                     <div className="border-b border-slate-200 px-5 py-4">
                         <div className="flex flex-wrap items-center justify-between gap-4">
                             <div className="flex items-center gap-3">
-                                <div className="text-[30px] font-semibold tracking-[-0.05em] text-slate-900">
+                                <div className="flex items-center gap-3 text-[1.875rem] font-semibold tracking-[-0.05em] text-slate-900">
+                                    <span className="text-[1.55rem] leading-none">
+                                        ◫
+                                    </span>
                                     文章
                                 </div>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
                                 <button
                                     type="button"
-                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                                    className={ghostButtonClass}
                                 >
                                     预览
                                 </button>
@@ -73,52 +79,25 @@ export function PostEditorSection({
                                     type="submit"
                                     form="post-editor-form"
                                     disabled={submitting || busy}
-                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                                    className={ghostButtonClass}
                                 >
                                     保存
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setSettingsOpen(true)}
-                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                                    className={ghostButtonClass}
                                 >
                                     设置
                                 </button>
                                 <button
                                     type="button"
                                     onClick={resetPostForm}
-                                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white"
+                                    className={primaryButtonClass}
                                 >
                                     发布
                                 </button>
                             </div>
-                        </div>
-                    </div>
-
-                    <div className="border-b border-slate-200 px-5 py-3 text-slate-500">
-                        <div className="flex flex-wrap items-center gap-5 text-lg">
-                            {[
-                                "H",
-                                "B",
-                                "I",
-                                "❝",
-                                "🔗",
-                                "</>",
-                                "{ }",
-                                "≣",
-                                "☑",
-                                "⊞",
-                                "Σ",
-                                "🖼",
-                            ].map((item) => (
-                                <button
-                                    key={item}
-                                    type="button"
-                                    className="text-slate-500 transition hover:text-slate-800"
-                                >
-                                    {item}
-                                </button>
-                            ))}
                         </div>
                     </div>
 
@@ -133,7 +112,7 @@ export function PostEditorSection({
                                     value={values.title}
                                     onChange={handleChange("title")}
                                     placeholder="请输入文章标题"
-                                    className="w-full border-0 p-0 text-[28px] font-semibold tracking-[-0.04em] text-slate-900 outline-none placeholder:text-slate-300"
+                                    className="w-full border-0 p-0 text-[2.25rem] font-semibold tracking-[-0.05em] text-slate-900 outline-none placeholder:text-slate-300"
                                 />
                             </div>
                             <div className="px-5 py-4">
@@ -141,17 +120,14 @@ export function PostEditorSection({
                                     value={values.content}
                                     onChange={handleChange("content")}
                                     placeholder="开始编写你的 Markdown 内容..."
-                                    className="min-h-130 w-full resize-none border-0 p-0 font-mono text-[16px] leading-8 text-slate-800 outline-none placeholder:text-slate-300"
+                                    className="min-h-130 w-full resize-none border-0 p-0 font-mono text-base leading-8 text-slate-800 outline-none placeholder:text-slate-300"
                                 />
                             </div>
                         </div>
 
-                        <div className="min-h-105 bg-white">
-                            <div className="border-b border-slate-100 px-6 py-4 text-sm text-slate-400">
-                                Slug: `/posts/{slugPreview}`
-                            </div>
-                            <div className="px-6 py-5">
-                                <h1 className="text-[22px] font-semibold tracking-[-0.03em] text-slate-900">
+                        <div className="min-h-105 border-l border-slate-200 bg-white">
+                            <div className="max-h-[calc(100vh-14rem)] overflow-y-auto px-6 py-5">
+                                <h1 className="text-[1.375rem] font-semibold tracking-[-0.03em] text-slate-900">
                                     {values.title || "未命名文章"}
                                 </h1>
                                 <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-400">

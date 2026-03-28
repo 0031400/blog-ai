@@ -121,10 +121,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                 return "posts";
         }
     }, [location.pathname]);
-    const slugPreview = useMemo(
-        () => values.slug.trim() || "your-post-slug",
-        [values.slug],
-    );
     const isEditingPost = selectedPost !== null;
 
     const filteredPosts = useMemo(() => {
@@ -928,7 +924,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             <div className="min-h-screen md:flex">
                 <AdminSidebar activeViewMode={activeViewMode} />
 
-                <main className="min-w-0 flex-1">
+                <main className="min-w-0 flex-1 md:ml-64">
                     <AdminTopbar
                         editorOpen={editorOpen}
                         onCreatePost={openCreateEditor}
@@ -958,7 +954,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                             </div>
                         ) : null}
                         {loading ? (
-                            <div className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500">
+                            <div className="mt-4 rounded-lg border border-slate-200 bg-white px-4 py-4 text-sm text-slate-500 shadow-sm">
                                 正在加载后台内容...
                             </div>
                         ) : null}
@@ -974,7 +970,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                     isEditingPost={isEditingPost}
                                     resetPostForm={resetPostForm}
                                     selectedPost={selectedPost}
-                                    slugPreview={slugPreview}
                                     submitting={submitting}
                                     tags={tags}
                                     values={values}

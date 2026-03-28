@@ -12,7 +12,7 @@ export function AdminOverviewBar({
     total,
 }: AdminOverviewBarProps) {
     return (
-        <section className="rounded-2xl border border-slate-200 bg-white">
+        <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="grid gap-px bg-slate-200 md:grid-cols-4">
                 {[
                     ["总文章", total],
@@ -20,11 +20,8 @@ export function AdminOverviewBar({
                     ["草稿", drafts],
                     ["回收站", recycled],
                 ].map(([label, value]) => (
-                    <div
-                        key={label}
-                        className="bg-white px-5 py-4 first:rounded-l-2xl last:rounded-r-2xl"
-                    >
-                        <div className="text-xs uppercase tracking-[0.18em] text-slate-400">
+                    <div key={label} className="bg-white px-5 py-4">
+                        <div className="text-xs font-medium text-slate-400">
                             {label}
                         </div>
                         <div className="mt-2 text-2xl font-semibold tracking-[-0.04em] text-slate-900">

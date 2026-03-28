@@ -3,7 +3,7 @@ import { useState } from "react";
 import type { Category } from "../../../types/category.ts";
 import type { PostFormValues } from "../../../types/postForm.ts";
 import type { Tag } from "../../../types/tag.ts";
-import { inputClass } from "../shared.ts";
+import { ghostButtonClass, inputClass, primaryButtonClass } from "../shared.ts";
 
 type EditorSettingsModalProps = {
     categories: Category[];
@@ -38,15 +38,15 @@ export function EditorSettingsModal({
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/35 px-4 py-8 backdrop-blur-[2px]">
-            <div className="w-full max-w-180 overflow-hidden rounded-2xl bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
+            <div className="w-full max-w-180 overflow-hidden rounded-lg bg-white shadow-[0_24px_80px_rgba(15,23,42,0.22)]">
                 <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
-                    <div className="text-[24px] font-semibold tracking-[-0.04em] text-slate-900">
+                    <div className="text-[1.5rem] font-semibold tracking-[-0.04em] text-slate-900">
                         文章设置
                     </div>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full text-slate-500 transition hover:bg-slate-100"
                     >
                         ×
                     </button>
@@ -78,7 +78,7 @@ export function EditorSettingsModal({
                             <span className="mb-2 block text-sm font-medium text-slate-700">
                                 别名 *
                             </span>
-                            <div className="flex overflow-hidden rounded-lg border border-slate-200">
+                            <div className="flex overflow-hidden rounded-md border border-slate-200">
                                 <input
                                     value={draft.slug}
                                     onChange={(event) =>
@@ -232,14 +232,14 @@ export function EditorSettingsModal({
                     <button
                         type="button"
                         onClick={apply}
-                        className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm text-white"
+                        className={primaryButtonClass}
                     >
                         保存
                     </button>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-lg border border-slate-200 px-5 py-2.5 text-sm text-slate-600"
+                        className={ghostButtonClass}
                     >
                         关闭
                     </button>
