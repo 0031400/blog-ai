@@ -24,9 +24,8 @@ export function MarkdownContent({
                         </h1>
                     ),
                     h2: ({ children }) => (
-                        <h2 className="fuwari-font-title mt-12 flex items-center gap-3 text-2xl font-bold tracking-[-0.04em] text-slate-950 md:text-3xl">
-                            <span className="inline-block h-6 w-1 rounded-full bg-sky-400" />
-                            <span>{children}</span>
+                        <h2 className="fuwari-font-title mt-12 text-2xl font-bold tracking-[-0.04em] text-slate-950 md:text-3xl">
+                            {children}
                         </h2>
                     ),
                     h3: ({ children }) => (
