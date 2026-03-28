@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { PreviewableImage } from "./PreviewableImage.tsx";
 
 type MarkdownContentProps = {
     className?: string;
@@ -68,7 +69,7 @@ export function MarkdownContent({
                     ),
                     img: ({ alt, src }) => (
                         <figure className="fuwari-card-soft mt-8 border border-slate-200">
-                            <img
+                            <PreviewableImage
                                 src={src ?? ""}
                                 alt={alt ?? ""}
                                 className="w-full object-cover"
