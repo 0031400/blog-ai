@@ -25,6 +25,7 @@ import {
     viewTitle,
 } from "./admin/shared.ts";
 import { CategoriesSection } from "./admin/components/CategoriesSection.tsx";
+import { AdminLoginSection } from "./admin/components/AdminLoginSection.tsx";
 import { PostEditorSection } from "./admin/components/PostEditorSection.tsx";
 import { PostsSection } from "./admin/components/PostsSection.tsx";
 import { TagsSection } from "./admin/components/TagsSection.tsx";
@@ -54,6 +55,18 @@ const createInitialValues = (): PostFormValues => ({
     publishedAt: new Date().toISOString().slice(0, 16),
 });
 
+function formatAdminError(error: unknown, fallback: string) {
+    if (!(error instanceof Error)) {
+        return fallback;
+    }
+
+    if (error.message === "AUTH_REQUIRED") {
+        return "登录状态已失效，请重新登录。";
+    }
+
+    return error.message || fallback;
+}
+
 export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const location = useLocation();
     const navigate = useNavigate();
@@ -70,6 +83,12 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const [submitting, setSubmitting] = useState(false);
     const [busy, setBusy] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [authChecking, setAuthChecking] = useState(true);
+    const [authenticated, setAuthenticated] = useState(false);
+    const [loginSubmitting, setLoginSubmitting] = useState(false);
+    const [authError, setAuthError] = useState("");
+    const [username, setUsername] = useState("admin");
+    const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
 
@@ -175,20 +194,95 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         [posts],
     );
 
+    const adminFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+        const response = await fetch(input, {
+            ...init,
+            credentials: "include",
+        });
+
+        if (response.status === 401) {
+            setAuthenticated(false);
+            setPosts([]);
+            setCategories([]);
+            setTags([]);
+            setSelectedPostId(null);
+            setValues(createInitialValues());
+            setSuccessMessage("");
+            throw new Error("AUTH_REQUIRED");
+        }
+
+        return response;
+    };
+
     useEffect(() => {
         const controller = new AbortController();
 
+        const checkSession = async () => {
+            try {
+                const response = await fetch(
+                    `${apiBaseUrl}/api/admin/session`,
+                    {
+                        credentials: "include",
+                        signal: controller.signal,
+                    },
+                );
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        setAuthenticated(false);
+                        setAuthError("");
+                        return;
+                    }
+
+                    throw new Error(
+                        `Request failed with status ${response.status}`,
+                    );
+                }
+
+                setAuthenticated(true);
+                setAuthError("");
+            } catch (fetchError) {
+                if (
+                    fetchError instanceof DOMException &&
+                    fetchError.name === "AbortError"
+                ) {
+                    return;
+                }
+
+                setAuthenticated(false);
+                setAuthError("管理员认证状态暂时无法确认。");
+            } finally {
+                setAuthChecking(false);
+            }
+        };
+
+        void checkSession();
+
+        return () => {
+            controller.abort();
+        };
+    }, [apiBaseUrl]);
+
+    useEffect(() => {
+        if (!authenticated) {
+            setLoading(false);
+            return;
+        }
+
+        const controller = new AbortController();
+
         const loadData = async () => {
+            setLoading(true);
             try {
                 const [postsResponse, categoriesResponse, tagsResponse] =
                     await Promise.all([
-                        fetch(`${apiBaseUrl}/api/posts?scope=admin`, {
+                        adminFetch(`${apiBaseUrl}/api/posts?scope=admin`, {
                             signal: controller.signal,
                         }),
-                        fetch(`${apiBaseUrl}/api/categories`, {
+                        adminFetch(`${apiBaseUrl}/api/categories`, {
                             signal: controller.signal,
                         }),
-                        fetch(`${apiBaseUrl}/api/tags`, {
+                        adminFetch(`${apiBaseUrl}/api/tags`, {
                             signal: controller.signal,
                         }),
                     ]);
@@ -224,6 +318,15 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                     return;
                 }
 
+                if (
+                    fetchError instanceof Error &&
+                    fetchError.message === "AUTH_REQUIRED"
+                ) {
+                    setAuthError("登录状态已失效，请重新登录。");
+                    setError("");
+                    return;
+                }
+
                 setError("后台数据暂时无法加载。");
             } finally {
                 setLoading(false);
@@ -235,7 +338,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         return () => {
             controller.abort();
         };
-    }, [apiBaseUrl]);
+    }, [apiBaseUrl, authenticated]);
 
     const fillPostForm = (
         post: Post,
@@ -331,6 +434,68 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const resetPostForm = () => {
         setError("");
         navigate(createAdminPath());
+    };
+
+    const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setLoginSubmitting(true);
+        setAuthError("");
+
+        try {
+            const response = await fetch(`${apiBaseUrl}/api/admin/login`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    username: username.trim(),
+                    password,
+                }),
+            });
+
+            const payload = (await response.json()) as { error?: string };
+            if (!response.ok) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+
+            setAuthenticated(true);
+            setPassword("");
+            setAuthError("");
+        } catch (loginError) {
+            setAuthenticated(false);
+            setAuthError(
+                loginError instanceof Error
+                    ? loginError.message
+                    : "登录失败，请稍后重试。",
+            );
+        } finally {
+            setLoginSubmitting(false);
+        }
+    };
+
+    const handleLogout = async () => {
+        setBusy(true);
+        setSuccessMessage("");
+        setError("");
+
+        try {
+            await fetch(`${apiBaseUrl}/api/admin/logout`, {
+                method: "POST",
+                credentials: "include",
+            });
+        } finally {
+            setAuthenticated(false);
+            setPassword("");
+            setPosts([]);
+            setCategories([]);
+            setTags([]);
+            setSelectedPostId(null);
+            setValues(createInitialValues());
+            navigate(createAdminPath());
+            setBusy(false);
+        }
     };
 
     const resetCategoryForm = () => {
@@ -444,7 +609,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             const endpoint = isEditingPost
                 ? `${apiBaseUrl}/api/posts/${selectedPost.id}`
                 : `${apiBaseUrl}/api/posts`;
-            const response = await fetch(endpoint, {
+            const response = await adminFetch(endpoint, {
                 method: isEditingPost ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(buildPostPayload()),
@@ -474,11 +639,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                 replace: true,
             });
         } catch (submitError) {
-            setError(
-                submitError instanceof Error
-                    ? submitError.message
-                    : "提交失败，请稍后重试。",
-            );
+            setError(formatAdminError(submitError, "提交失败，请稍后重试。"));
         } finally {
             setSubmitting(false);
         }
@@ -491,9 +652,12 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setSuccessMessage("");
 
         try {
-            const response = await fetch(`${apiBaseUrl}/api/posts/${post.id}`, {
-                method: "DELETE",
-            });
+            const response = await adminFetch(
+                `${apiBaseUrl}/api/posts/${post.id}`,
+                {
+                    method: "DELETE",
+                },
+            );
             const payload = (await response.json()) as {
                 data?: Post;
                 error?: string;
@@ -510,11 +674,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             }
             setSuccessMessage("文章已移入回收站。");
         } catch (deleteError) {
-            setError(
-                deleteError instanceof Error
-                    ? deleteError.message
-                    : "删除失败，请稍后重试。",
-            );
+            setError(formatAdminError(deleteError, "删除失败，请稍后重试。"));
         } finally {
             setBusy(false);
         }
@@ -526,7 +686,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setSuccessMessage("");
 
         try {
-            const response = await fetch(
+            const response = await adminFetch(
                 `${apiBaseUrl}/api/posts/${post.id}/restore`,
                 {
                     method: "PUT",
@@ -547,11 +707,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             upsertPost(payload.data);
             setSuccessMessage("文章已恢复。");
         } catch (restoreError) {
-            setError(
-                restoreError instanceof Error
-                    ? restoreError.message
-                    : "恢复失败，请稍后重试。",
-            );
+            setError(formatAdminError(restoreError, "恢复失败，请稍后重试。"));
         } finally {
             setBusy(false);
         }
@@ -567,11 +723,14 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setSuccessMessage("");
 
         try {
-            const response = await fetch(`${apiBaseUrl}/api/posts/${post.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(buildPostPayloadFromPost(post, patch)),
-            });
+            const response = await adminFetch(
+                `${apiBaseUrl}/api/posts/${post.id}`,
+                {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(buildPostPayloadFromPost(post, patch)),
+                },
+            );
             const payload = (await response.json()) as {
                 data?: Post;
                 error?: string;
@@ -588,11 +747,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             }
             setSuccessMessage(successText);
         } catch (updateError) {
-            setError(
-                updateError instanceof Error
-                    ? updateError.message
-                    : "更新失败，请稍后重试。",
-            );
+            setError(formatAdminError(updateError, "更新失败，请稍后重试。"));
         } finally {
             setBusy(false);
         }
@@ -605,7 +760,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setSuccessMessage("");
 
         try {
-            const response = await fetch(
+            const response = await adminFetch(
                 editingCategoryId
                     ? `${apiBaseUrl}/api/categories/${editingCategoryId}`
                     : `${apiBaseUrl}/api/categories`,
@@ -645,11 +800,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             );
             resetCategoryForm();
         } catch (submitError) {
-            setError(
-                submitError instanceof Error
-                    ? submitError.message
-                    : "分类保存失败。",
-            );
+            setError(formatAdminError(submitError, "分类保存失败。"));
         } finally {
             setBusy(false);
         }
@@ -662,7 +813,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setSuccessMessage("");
 
         try {
-            const response = await fetch(
+            const response = await adminFetch(
                 editingTagId
                     ? `${apiBaseUrl}/api/tags/${editingTagId}`
                     : `${apiBaseUrl}/api/tags`,
@@ -700,11 +851,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             setSuccessMessage(editingTagId ? "标签已更新。" : "标签已创建。");
             resetTagForm();
         } catch (submitError) {
-            setError(
-                submitError instanceof Error
-                    ? submitError.message
-                    : "标签保存失败。",
-            );
+            setError(formatAdminError(submitError, "标签保存失败。"));
         } finally {
             setBusy(false);
         }
@@ -716,7 +863,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setError("");
         setSuccessMessage("");
         try {
-            const response = await fetch(
+            const response = await adminFetch(
                 `${apiBaseUrl}/api/categories/${category.id}`,
                 { method: "DELETE" },
             );
@@ -732,11 +879,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             );
             setSuccessMessage("分类已删除。");
         } catch (deleteError) {
-            setError(
-                deleteError instanceof Error
-                    ? deleteError.message
-                    : "分类删除失败。",
-            );
+            setError(formatAdminError(deleteError, "分类删除失败。"));
         } finally {
             setBusy(false);
         }
@@ -748,9 +891,12 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         setError("");
         setSuccessMessage("");
         try {
-            const response = await fetch(`${apiBaseUrl}/api/tags/${tag.id}`, {
-                method: "DELETE",
-            });
+            const response = await adminFetch(
+                `${apiBaseUrl}/api/tags/${tag.id}`,
+                {
+                    method: "DELETE",
+                },
+            );
             const payload = (await response.json()) as { error?: string };
             if (!response.ok) {
                 throw new Error(
@@ -761,15 +907,33 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             setTags((current) => current.filter((item) => item.id !== tag.id));
             setSuccessMessage("标签已删除。");
         } catch (deleteError) {
-            setError(
-                deleteError instanceof Error
-                    ? deleteError.message
-                    : "标签删除失败。",
-            );
+            setError(formatAdminError(deleteError, "标签删除失败。"));
         } finally {
             setBusy(false);
         }
     };
+
+    if (authChecking) {
+        return (
+            <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8 text-sm text-slate-500">
+                正在检查管理员登录状态...
+            </div>
+        );
+    }
+
+    if (!authenticated) {
+        return (
+            <AdminLoginSection
+                error={authError}
+                onSubmit={handleLogin}
+                password={password}
+                setPassword={setPassword}
+                setUsername={setUsername}
+                submitting={loginSubmitting}
+                username={username}
+            />
+        );
+    }
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-800">
@@ -846,6 +1010,13 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                 className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
                             >
                                 新建文章
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleLogout}
+                                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
+                            >
+                                退出登录
                             </button>
                         </div>
                     </header>

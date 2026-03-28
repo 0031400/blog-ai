@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("failed to initialize database: %v", err)
 	}
 
-	r := router.New(db)
+	r := router.New(db, cfg)
 
 	log.Printf("blog-ai-backend listening on :%s", cfg.Port)
 	if err := r.Run(":" + cfg.Port); err != nil {

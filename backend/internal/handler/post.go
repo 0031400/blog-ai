@@ -94,6 +94,9 @@ func (h PostHandler) List(c *gin.Context) {
 
 	query := h.postQuery()
 	if c.Query("scope") == "admin" {
+		if !isAdminRequestAllowed(c) {
+			return
+		}
 		query = applyAdminFilters(query, c)
 	} else {
 		query = query.Where("posts.deleted = ? AND posts.status = ? AND posts.visibility = ?", false, "published", "public")
@@ -105,6 +108,18 @@ func (h PostHandler) List(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": buildPostResponses(posts)})
+}
+
+func isAdminRequestAllowed(c *gin.Context) bool {
+	authorized, exists := c.Get("is_admin")
+	if exists {
+		if allowed, ok := authorized.(bool); ok && allowed {
+			return true
+		}
+	}
+
+	c.JSON(http.StatusUnauthorized, gin.H{"error": "authentication required"})
+	return false
 }
 
 // GetBySlug returns a single public post by its slug.
