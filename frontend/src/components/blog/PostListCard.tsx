@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 
 import { formatDate } from "../../lib/date";
 import { getPostCoverImage } from "../../lib/postCover.ts";
+import { calculateReadingStats } from "../../lib/readingStats.ts";
 import { createPostPath } from "../../lib/routes.ts";
 import type { Post } from "../../types/post.ts";
 
@@ -10,6 +11,8 @@ type PostListCardProps = {
 };
 
 export function PostListCard({ post }: PostListCardProps) {
+    const readingStats = calculateReadingStats(post.content);
+
     return (
         <article className="fuwari-card relative flex w-full flex-col-reverse overflow-hidden">
             <Link
@@ -44,9 +47,9 @@ export function PostListCard({ post }: PostListCardProps) {
                     </p>
 
                     <div className="flex gap-4 text-sm text-slate-400">
-                        <span>◎ {Math.max(post.readingTime * 218, 656)}</span>
+                        <span>◎ {readingStats.characterCount} 字</span>
                         <span>|</span>
-                        <span>◌ {Math.max(post.readingTime * 2, 3)}</span>
+                        <span>◌ 预计 {readingStats.minuteCount} 分钟</span>
                     </div>
                 </div>
 

@@ -6,6 +6,7 @@ import { BlogSidebar } from "../components/blog/BlogSidebar.tsx";
 import { MarkdownContent } from "../components/MarkdownContent.tsx";
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
+import { calculateReadingStats } from "../lib/readingStats.ts";
 import type { Post } from "../types/post.ts";
 
 type PostDetailPageProps = {
@@ -109,6 +110,10 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
         [publicPosts],
     );
     const tagItems = useMemo(() => buildTagItems(publicPosts), [publicPosts]);
+    const readingStats = useMemo(
+        () => calculateReadingStats(post?.content ?? ""),
+        [post?.content],
+    );
 
     return (
         <BlogFrame
@@ -131,14 +136,13 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                                         <span className="fuwari-meta-icon mr-0">
                                             ◫
                                         </span>
-                                        {Math.max(post.readingTime * 285, 854)}{" "}
-                                        words
+                                        {readingStats.characterCount} 字
                                     </span>
                                     <span className="inline-flex items-center gap-2">
                                         <span className="fuwari-meta-icon mr-0">
                                             ◌
                                         </span>
-                                        {post.readingTime} minutes
+                                        预计 {readingStats.minuteCount} 分钟
                                     </span>
                                 </div>
 

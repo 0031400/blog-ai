@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import { MarkdownContent } from "../../../components/MarkdownContent.tsx";
+import { calculateReadingStats } from "../../../lib/readingStats.ts";
 import type { Category } from "../../../types/category.ts";
 import type { PostFormValues } from "../../../types/postForm.ts";
 import type { Tag } from "../../../types/tag.ts";
@@ -46,6 +47,10 @@ export function PostEditorSection({
         () => values.content.trim(),
         [values.content],
     );
+    const readingStats = useMemo(
+        () => calculateReadingStats(values.content),
+        [values.content],
+    );
 
     return (
         <>
@@ -89,7 +94,9 @@ export function PostEditorSection({
                                         )?.name ?? "未分类"}
                                     </span>
                                     <span>·</span>
-                                    <span>{values.readingTime || "0"} min</span>
+                                    <span>
+                                        预计 {readingStats.minuteCount} 分钟
+                                    </span>
                                     <span>·</span>
                                     <span>
                                         {values.status === "published"
@@ -116,7 +123,8 @@ export function PostEditorSection({
 
                     <div className="flex items-center justify-between border-t border-slate-200 px-5 py-3 text-sm text-slate-400">
                         <div>
-                            Words: {values.content.trim().length} Lines:{" "}
+                            字数: {readingStats.characterCount} 预计阅读:{" "}
+                            {readingStats.minuteCount} 分钟 行数:{" "}
                             {Math.max(values.content.split("\n").length, 1)}
                         </div>
                         <div className="flex items-center gap-4">

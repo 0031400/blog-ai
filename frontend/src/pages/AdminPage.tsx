@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 
 import { normalizePost } from "../lib/post.ts";
+import { calculateReadingStats } from "../lib/readingStats.ts";
 import {
     adminPostEditorPath,
     createAdminPath,
@@ -54,6 +55,10 @@ function validatePostValues(values: PostFormValues) {
     }
 
     return "";
+}
+
+function buildReadingTime(content: string) {
+    return calculateReadingStats(content).minuteCount;
 }
 
 function formatAdminError(error: unknown, fallback: string) {
@@ -598,7 +603,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         coverImage: values.coverImage,
         categoryId: Number(values.categoryId),
         tagIds: values.tagIds,
-        readingTime: Number(values.readingTime),
+        readingTime: buildReadingTime(values.content),
         status: values.status,
         allowComment: values.allowComment,
         deleted: values.deleted,
@@ -619,7 +624,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
             coverImage: nextPost.coverImage,
             categoryId: nextPost.category?.id ?? 0,
             tagIds: (nextPost.tags ?? []).map((tag) => tag.id),
-            readingTime: nextPost.readingTime,
+            readingTime: buildReadingTime(nextPost.content),
             status: nextPost.status,
             allowComment: nextPost.allowComment,
             deleted: nextPost.deleted,
@@ -714,7 +719,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                     coverImage: nextValues.coverImage,
                     categoryId: Number(nextValues.categoryId),
                     tagIds: nextValues.tagIds,
-                    readingTime: Number(nextValues.readingTime),
+                    readingTime: buildReadingTime(nextValues.content),
                     status: nextValues.status,
                     allowComment: nextValues.allowComment,
                     deleted: nextValues.deleted,
