@@ -76,7 +76,7 @@ export function EditorSettingsModal({
 
                         <label className="block">
                             <span className="mb-2 block text-sm font-medium text-slate-700">
-                                别名 *
+                                别名
                             </span>
                             <div className="flex overflow-hidden rounded-md border border-slate-200">
                                 <input
@@ -87,6 +87,7 @@ export function EditorSettingsModal({
                                             slug: event.target.value,
                                         }))
                                     }
+                                    placeholder="留空则自动生成"
                                     className="min-w-0 flex-1 border-0 px-3 py-2 text-sm outline-none"
                                 />
                                 <button
@@ -94,12 +95,7 @@ export function EditorSettingsModal({
                                     onClick={() =>
                                         setDraft((current) => ({
                                             ...current,
-                                            slug: current.title
-                                                .toLowerCase()
-                                                .trim()
-                                                .replace(/[^a-z0-9\s-]/g, "")
-                                                .replace(/\s+/g, "-")
-                                                .replace(/-+/g, "-"),
+                                            slug: crypto.randomUUID(),
                                         }))
                                     }
                                     className="border-l border-slate-200 px-4 text-slate-500"
@@ -108,7 +104,7 @@ export function EditorSettingsModal({
                                 </button>
                             </div>
                             <div className="mt-2 text-xs text-slate-400">
-                                通常用于生成文章的固定链接
+                                可留空，提交时会自动生成随机 UUID
                             </div>
                         </label>
 

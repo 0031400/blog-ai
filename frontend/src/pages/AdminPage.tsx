@@ -402,21 +402,10 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                     ? target.checked
                     : target.value;
 
-            setValues((currentValues) => {
-                const nextValues = { ...currentValues, [field]: nextValue };
-
-                if (field === "title") {
-                    const autoSlug = toSlug(String(nextValue));
-                    if (
-                        !currentValues.slug ||
-                        currentValues.slug === toSlug(currentValues.title)
-                    ) {
-                        nextValues.slug = autoSlug;
-                    }
-                }
-
-                return nextValues;
-            });
+            setValues((currentValues) => ({
+                ...currentValues,
+                [field]: nextValue,
+            }));
         };
 
     const resetPostForm = () => {
@@ -538,7 +527,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
 
     const buildPostPayload = () => ({
         title: values.title,
-        slug: values.slug,
+        slug: values.slug.trim() || crypto.randomUUID(),
         excerpt: values.excerpt,
         content: values.content,
         coverImage: values.coverImage,
@@ -561,7 +550,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
 
         return {
             title: nextPost.title,
-            slug: nextPost.slug,
+            slug: nextPost.slug.trim() || crypto.randomUUID(),
             excerpt: nextPost.excerpt,
             content: nextPost.content,
             coverImage: nextPost.coverImage,
