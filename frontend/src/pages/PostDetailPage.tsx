@@ -1,21 +1,68 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 
-import { createHomePath } from "../lib/routes.ts";
-import { formatDate } from "../lib/date";
-import type { Post } from "../types/post.ts";
 import { WingLayout } from "../components/WingLayout";
+import { formatDate } from "../lib/date";
+import { normalizePost } from "../lib/post.ts";
+import { createHomePath } from "../lib/routes.ts";
+import type { Post } from "../types/post.ts";
 
 type PostDetailPageProps = {
-    detailError: string;
-    detailLoading: boolean;
-    post: Post | null;
+    apiBaseUrl: string;
 };
 
-export function PostDetailPage({
-    detailError,
-    detailLoading,
-    post,
-}: PostDetailPageProps) {
+export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
+    const { slug = "" } = useParams();
+    const [post, setPost] = useState<Post | null>(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [detailError, setDetailError] = useState("");
+
+    useEffect(() => {
+        if (!slug) {
+            setPost(null);
+            setDetailError("暂时没有找到这篇文章");
+            return;
+        }
+
+        const controller = new AbortController();
+
+        const loadPost = async () => {
+            setDetailLoading(true);
+
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/posts/${slug}`, {
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                const payload: { data: Post } = await response.json();
+                setPost(normalizePost(payload.data));
+                setDetailError("");
+            } catch (fetchError) {
+                if (
+                    fetchError instanceof DOMException &&
+                    fetchError.name === "AbortError"
+                ) {
+                    return;
+                }
+
+                setPost(null);
+                setDetailError("这篇文章暂时无法加载。");
+            } finally {
+                setDetailLoading(false);
+            }
+        };
+
+        void loadPost();
+
+        return () => {
+            controller.abort();
+        };
+    }, [apiBaseUrl, slug]);
+
     const rightAside = (
         <>
             <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
@@ -30,14 +77,8 @@ export function PostDetailPage({
                 <div className="mt-3 space-y-2">
                     {[
                         [post?.category?.name ?? "未分类", "文章分类"],
-                        [
-                            post ? `${post.readingTime} min` : "--",
-                            "预计阅读时间",
-                        ],
-                        [
-                            post ? formatDate(post.publishedAt) : "--",
-                            "发布时间",
-                        ],
+                        [post ? `${post.readingTime} min` : "--", "预计阅读时间"],
+                        [post ? formatDate(post.publishedAt) : "--", "发布时间"],
                     ].map(([value, label]) => (
                         <div
                             key={label}
@@ -76,7 +117,7 @@ export function PostDetailPage({
                     </div>
                     <div className="rounded-xl bg-slate-50 px-3 py-3">
                         <div className="text-sm font-medium text-slate-900">
-                            Hash Route
+                            React Router
                         </div>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
                             使用 React Router 管理 `/posts/:slug` 路由。
@@ -112,7 +153,7 @@ export function PostDetailPage({
 
                     {post ? (
                         <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm">
-                            <div className="h-52 overflow-hidden md:h-64">
+                            <div className="overflow-hidden md:h-64">
                                 <img
                                     src={post.coverImage}
                                     alt={post.title}

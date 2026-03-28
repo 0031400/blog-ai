@@ -1,15 +1,15 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { createAdminPath, createPostPath, homePath } from "../lib/routes.ts";
-import { formatDate } from "../lib/date";
-import type { Post } from "../types/post.ts";
 import { WingLayout } from "../components/WingLayout";
+import { fallbackPosts } from "../data/fallbackPosts.ts";
+import { formatDate } from "../lib/date";
+import { normalizePost } from "../lib/post.ts";
+import { createAdminPath, createPostPath, homePath } from "../lib/routes.ts";
+import type { Post } from "../types/post.ts";
 
 type HomePageProps = {
-    error: string;
-    featuredPost: Post | undefined;
-    latestPosts: Post[];
-    loading: boolean;
+    apiBaseUrl: string;
 };
 
 function ArticleCard({
@@ -61,12 +61,54 @@ function ArticleCard({
     );
 }
 
-export function HomePage({
-    error,
-    featuredPost,
-    latestPosts,
-    loading,
-}: HomePageProps) {
+export function HomePage({ apiBaseUrl }: HomePageProps) {
+    const [posts, setPosts] = useState<Post[]>(() =>
+        fallbackPosts.map(normalizePost),
+    );
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        const loadPosts = async () => {
+            try {
+                const response = await fetch(`${apiBaseUrl}/api/posts`, {
+                    signal: controller.signal,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Request failed with status ${response.status}`);
+                }
+
+                const payload: { data: Post[] } = await response.json();
+                setPosts(payload.data.map(normalizePost));
+                setError("");
+            } catch (fetchError) {
+                if (
+                    fetchError instanceof DOMException &&
+                    fetchError.name === "AbortError"
+                ) {
+                    return;
+                }
+
+                setPosts(fallbackPosts.map(normalizePost));
+                setError("后端暂时未连接，当前展示的是本地示例内容。");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void loadPosts();
+
+        return () => {
+            controller.abort();
+        };
+    }, [apiBaseUrl]);
+
+    const featuredPost = posts[0];
+    const latestPosts = useMemo(() => posts.slice(1), [posts]);
+
     const rightAside = (
         <>
             <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
@@ -112,37 +154,21 @@ export function HomePage({
             <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
                 <div className="flex items-center justify-between">
                     <h3 className="text-sm font-semibold text-slate-900">
-                        站点状态
+                        更新状态
                     </h3>
                     <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        Status
+                        Sync
                     </span>
                 </div>
                 <div className="mt-3 space-y-2">
                     <div className="rounded-xl bg-slate-50 px-3 py-3">
                         <div className="text-sm font-medium text-slate-900">
-                            Go + React
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            保留现有接口驱动和 hash 路由。
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            Wing 风格
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            布局、卡片和边栏压缩到更接近主题的密度。
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            {loading ? "同步中" : "已就绪"}
+                            {loading ? "同步中" : "已加载"}
                         </div>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
                             {loading
-                                ? "正在拉取后端内容。"
-                                : "可以继续细化后台和详情页。"}
+                                ? "正在请求最新公开文章。"
+                                : "首页内容已从当前路由页面内加载。"}
                         </p>
                     </div>
                 </div>

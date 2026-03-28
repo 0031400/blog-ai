@@ -9,6 +9,7 @@ import {
 import { Link } from "react-router-dom";
 
 import { formatDate } from "../lib/date";
+import { normalizePost } from "../lib/post.ts";
 import { createHomePath, createPostPath } from "../lib/routes.ts";
 import type { Category } from "../types/category.ts";
 import type { Post } from "../types/post.ts";
@@ -17,13 +18,6 @@ import type { Tag } from "../types/tag.ts";
 
 type AdminPageProps = {
     apiBaseUrl: string;
-    categories: Category[];
-    onPostCreated: (post: Post) => void;
-    onPostUpdated: (post: Post) => void;
-    posts: Post[];
-    setCategories: Dispatch<SetStateAction<Category[]>>;
-    setTags: Dispatch<SetStateAction<Tag[]>>;
-    tags: Tag[];
 };
 
 type ViewMode = "posts" | "recycle" | "categories" | "tags";
@@ -47,16 +41,10 @@ const createInitialValues = (): PostFormValues => ({
     publishedAt: new Date().toISOString().slice(0, 16),
 });
 
-export function AdminPage({
-    apiBaseUrl,
-    categories,
-    onPostCreated,
-    onPostUpdated,
-    posts,
-    setCategories,
-    setTags,
-    tags,
-}: AdminPageProps) {
+export function AdminPage({ apiBaseUrl }: AdminPageProps) {
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [tags, setTags] = useState<Tag[]>([]);
     const [values, setValues] = useState<PostFormValues>(createInitialValues);
     const [selectedPostId, setSelectedPostId] = useState<number | null>(null);
     const [editorOpen, setEditorOpen] = useState(false);
@@ -67,6 +55,7 @@ export function AdminPage({
         useState<VisibilityFilter>("all");
     const [submitting, setSubmitting] = useState(false);
     const [busy, setBusy] = useState(false);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
 
@@ -151,6 +140,68 @@ export function AdminPage({
     );
 
     useEffect(() => {
+        const controller = new AbortController();
+
+        const loadData = async () => {
+            try {
+                const [postsResponse, categoriesResponse, tagsResponse] =
+                    await Promise.all([
+                        fetch(`${apiBaseUrl}/api/posts?scope=admin`, {
+                            signal: controller.signal,
+                        }),
+                        fetch(`${apiBaseUrl}/api/categories`, {
+                            signal: controller.signal,
+                        }),
+                        fetch(`${apiBaseUrl}/api/tags`, {
+                            signal: controller.signal,
+                        }),
+                    ]);
+
+                if (!postsResponse.ok) {
+                    throw new Error(
+                        `Request failed with status ${postsResponse.status}`,
+                    );
+                }
+
+                const postPayload: { data: Post[] } =
+                    await postsResponse.json();
+                setPosts(postPayload.data.map(normalizePost));
+
+                if (categoriesResponse.ok) {
+                    const categoryPayload: { data: Category[] } =
+                        await categoriesResponse.json();
+                    setCategories(categoryPayload.data);
+                }
+
+                if (tagsResponse.ok) {
+                    const tagPayload: { data: Tag[] } =
+                        await tagsResponse.json();
+                    setTags(tagPayload.data);
+                }
+
+                setError("");
+            } catch (fetchError) {
+                if (
+                    fetchError instanceof DOMException &&
+                    fetchError.name === "AbortError"
+                ) {
+                    return;
+                }
+
+                setError("后台数据暂时无法加载。");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        void loadData();
+
+        return () => {
+            controller.abort();
+        };
+    }, [apiBaseUrl]);
+
+    useEffect(() => {
         if (!selectedPost && selectedPostId !== null) {
             resetPostForm();
         }
@@ -204,6 +255,28 @@ export function AdminPage({
         setTagSlug("");
         setTagColor("");
         setEditingTagId(null);
+    };
+
+    const upsertPost = (post: Post) => {
+        const normalizedPost = normalizePost(post);
+        setPosts((currentPosts) => {
+            const exists = currentPosts.some(
+                (currentPost) => currentPost.id === normalizedPost.id,
+            );
+            const nextPosts = exists
+                ? currentPosts.map((currentPost) =>
+                      currentPost.id === normalizedPost.id
+                          ? normalizedPost
+                          : currentPost,
+                  )
+                : [normalizedPost, ...currentPosts];
+
+            return nextPosts.sort(
+                (left, right) =>
+                    new Date(right.publishedAt).getTime() -
+                    new Date(left.publishedAt).getTime(),
+            );
+        });
     };
 
     const openCreateEditor = () => {
@@ -324,10 +397,10 @@ export function AdminPage({
             }
 
             if (isEditingPost) {
-                onPostUpdated(payload.data);
+                upsertPost(payload.data);
                 setSuccessMessage("文章已更新。");
             } else {
-                onPostCreated(payload.data);
+                upsertPost(payload.data);
                 setSuccessMessage("文章已创建。");
             }
 
@@ -363,7 +436,7 @@ export function AdminPage({
                         `Request failed with status ${response.status}`,
                 );
             }
-            onPostUpdated(payload.data);
+            upsertPost(payload.data);
             if (selectedPostId === post.id) {
                 resetPostForm();
             }
@@ -403,7 +476,7 @@ export function AdminPage({
                         `Request failed with status ${response.status}`,
                 );
             }
-            onPostUpdated(payload.data);
+            upsertPost(payload.data);
             setSuccessMessage("文章已恢复。");
         } catch (restoreError) {
             setError(
@@ -441,7 +514,7 @@ export function AdminPage({
                         `Request failed with status ${response.status}`,
                 );
             }
-            onPostUpdated(payload.data);
+            upsertPost(payload.data);
             if (selectedPostId === post.id) {
                 openEditEditor(payload.data, { preserveMessage: true });
             }
@@ -737,6 +810,11 @@ export function AdminPage({
                     {successMessage ? (
                         <div className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
                             {successMessage}
+                        </div>
+                    ) : null}
+                    {loading ? (
+                        <div className="mt-4 rounded-lg border border-slate-200 bg-white px-3 py-4 text-sm text-slate-500 shadow-sm">
+                            正在加载后台内容...
                         </div>
                     ) : null}
 
