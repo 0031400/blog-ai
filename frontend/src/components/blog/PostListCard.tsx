@@ -3,7 +3,11 @@ import { Link } from "react-router-dom";
 import { formatDate } from "../../lib/date";
 import { getPostCoverImage } from "../../lib/postCover.ts";
 import { calculateReadingStats } from "../../lib/readingStats.ts";
-import { createPostPath } from "../../lib/routes.ts";
+import {
+    createCategoryPath,
+    createPostPath,
+    createTagPath,
+} from "../../lib/routes.ts";
 import type { Post } from "../../types/post.ts";
 
 type PostListCardProps = {
@@ -30,14 +34,32 @@ export function PostListCard({ post }: PostListCardProps) {
                             {formatDate(post.publishedAt)}
                         </span>
                         <span className="mr-4 inline-flex items-center before:mr-4 before:text-slate-300 before:content-['/']">
-                            ◌ {post.category?.name ?? "未分类"}
+                            ◌{" "}
+                            {post.category ? (
+                                <Link
+                                    to={createCategoryPath(post.category.id)}
+                                    className="transition hover:text-sky-500"
+                                >
+                                    {post.category.name}
+                                </Link>
+                            ) : (
+                                "未分类"
+                            )}
                         </span>
                         {(post.tags ?? []).length > 0 ? (
                             <span className="inline-flex items-center before:mr-4 before:text-slate-300 before:content-['/']">
                                 #{" "}
-                                {(post.tags ?? [])
-                                    .map((tag) => tag.name)
-                                    .join(" / ")}
+                                {(post.tags ?? []).map((tag, index) => (
+                                    <span key={tag.id}>
+                                        {index > 0 ? " / " : ""}
+                                        <Link
+                                            to={createTagPath(tag.id)}
+                                            className="transition hover:text-sky-500"
+                                        >
+                                            {tag.name}
+                                        </Link>
+                                    </span>
+                                ))}
                             </span>
                         ) : null}
                     </div>

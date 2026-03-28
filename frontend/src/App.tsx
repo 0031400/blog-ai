@@ -16,6 +16,14 @@ function App() {
                     element={<HomePage apiBaseUrl={apiBaseUrl} />}
                 />
                 <Route
+                    path="/category/:id"
+                    element={<HomePage apiBaseUrl={apiBaseUrl} />}
+                />
+                <Route
+                    path="/tag/:id"
+                    element={<HomePage apiBaseUrl={apiBaseUrl} />}
+                />
+                <Route
                     path="/console"
                     element={<AdminPage apiBaseUrl={apiBaseUrl} />}
                 />

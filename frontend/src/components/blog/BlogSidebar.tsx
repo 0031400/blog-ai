@@ -1,8 +1,11 @@
+import { Link } from "react-router-dom";
+
 import { siteMeta } from "../../data/site.ts";
+import { createCategoryPath, createTagPath } from "../../lib/routes.ts";
 
 type BlogSidebarProps = {
-    categories: Array<{ count: number; name: string }>;
-    tags: string[];
+    categories: Array<{ count?: number; id: number; name: string }>;
+    tags: Array<{ id: number; name: string }>;
 };
 
 function SidebarCard({
@@ -55,13 +58,20 @@ export function BlogSidebar({ categories, tags }: BlogSidebarProps) {
                 <div className="space-y-4">
                     {categories.map((category) => (
                         <div
-                            key={category.name}
+                            key={category.id}
                             className="flex items-center justify-between text-[15px] text-slate-700"
                         >
-                            <span>{category.name}</span>
-                            <span className="fuwari-tag min-w-9 justify-center px-2.5 py-1 text-sm font-bold">
-                                {category.count}
-                            </span>
+                            <Link
+                                to={createCategoryPath(category.id)}
+                                className="transition hover:text-sky-500"
+                            >
+                                {category.name}
+                            </Link>
+                            {typeof category.count === "number" ? (
+                                <span className="fuwari-tag min-w-9 justify-center px-2.5 py-1 text-sm font-bold">
+                                    {category.count}
+                                </span>
+                            ) : null}
                         </div>
                     ))}
                 </div>
@@ -70,9 +80,13 @@ export function BlogSidebar({ categories, tags }: BlogSidebarProps) {
             <SidebarCard title="标签">
                 <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => (
-                        <span key={tag} className="fuwari-tag">
-                            {tag}
-                        </span>
+                        <Link
+                            key={tag.id}
+                            to={createTagPath(tag.id)}
+                            className="fuwari-tag transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-600"
+                        >
+                            {tag.name}
+                        </Link>
                     ))}
                 </div>
             </SidebarCard>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 import { BlogFrame } from "../components/blog/BlogFrame.tsx";
 import { BlogSidebar } from "../components/blog/BlogSidebar.tsx";
@@ -7,13 +7,16 @@ import { MarkdownContent } from "../components/MarkdownContent.tsx";
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
 import { calculateReadingStats } from "../lib/readingStats.ts";
+import { createCategoryPath, createTagPath } from "../lib/routes.ts";
+import type { Category } from "../types/category.ts";
 import type { Post } from "../types/post.ts";
+import type { Tag } from "../types/tag.ts";
 
 type PostDetailPageProps = {
     apiBaseUrl: string;
 };
 
-function buildCategoryItems(posts: Post[]) {
+function buildCategoryItems(posts: Post[], categories: Category[]) {
     const counts = new Map<string, number>();
 
     posts.forEach((post) => {
@@ -21,26 +24,33 @@ function buildCategoryItems(posts: Post[]) {
         counts.set(name, (counts.get(name) ?? 0) + 1);
     });
 
-    return [...counts.entries()]
-        .map(([name, count]) => ({ name, count }))
+    return categories
+        .map((category) => ({
+            id: category.id,
+            name: category.name,
+            count: counts.get(category.name) ?? 0,
+        }))
+        .filter((category) => category.count > 0)
         .sort((left, right) => right.count - left.count)
         .slice(0, 6);
 }
 
-function buildTagItems(posts: Post[]) {
-    const tags = new Set<string>();
+function buildTagItems(posts: Post[], tags: Tag[]) {
+    const tagIds = new Set<number>();
 
     posts.forEach((post) => {
-        (post.tags ?? []).forEach((tag) => tags.add(tag.name));
+        (post.tags ?? []).forEach((tag) => tagIds.add(tag.id));
     });
 
-    return [...tags].slice(0, 18);
+    return tags.filter((tag) => tagIds.has(tag.id)).slice(0, 18);
 }
 
 export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
     const { slug = "" } = useParams();
     const [post, setPost] = useState<Post | null>(null);
     const [publicPosts, setPublicPosts] = useState<Post[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [tags, setTags] = useState<Tag[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState("");
 
@@ -57,11 +67,22 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
             setDetailLoading(true);
 
             try {
-                const [postResponse, postsResponse] = await Promise.all([
+                const [
+                    postResponse,
+                    postsResponse,
+                    categoriesResponse,
+                    tagsResponse,
+                ] = await Promise.all([
                     fetch(`${apiBaseUrl}/api/posts/${slug}`, {
                         signal: controller.signal,
                     }),
                     fetch(`${apiBaseUrl}/api/posts`, {
+                        signal: controller.signal,
+                    }),
+                    fetch(`${apiBaseUrl}/api/categories`, {
+                        signal: controller.signal,
+                    }),
+                    fetch(`${apiBaseUrl}/api/tags`, {
                         signal: controller.signal,
                     }),
                 ]);
@@ -81,6 +102,18 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                     setPublicPosts(postsPayload.data.map(normalizePost));
                 }
 
+                if (categoriesResponse.ok) {
+                    const categoriesPayload: { data: Category[] } =
+                        await categoriesResponse.json();
+                    setCategories(categoriesPayload.data);
+                }
+
+                if (tagsResponse.ok) {
+                    const tagsPayload: { data: Tag[] } =
+                        await tagsResponse.json();
+                    setTags(tagsPayload.data);
+                }
+
                 setDetailError("");
             } catch (fetchError) {
                 if (
@@ -92,6 +125,8 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
 
                 setPost(null);
                 setPublicPosts([]);
+                setCategories([]);
+                setTags([]);
                 setDetailError("这篇文章暂时无法加载。");
             } finally {
                 setDetailLoading(false);
@@ -106,10 +141,13 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
     }, [apiBaseUrl, slug]);
 
     const categoryItems = useMemo(
-        () => buildCategoryItems(publicPosts),
-        [publicPosts],
+        () => buildCategoryItems(publicPosts, categories),
+        [categories, publicPosts],
     );
-    const tagItems = useMemo(() => buildTagItems(publicPosts), [publicPosts]);
+    const tagItems = useMemo(
+        () => buildTagItems(publicPosts, tags),
+        [publicPosts, tags],
+    );
     const readingStats = useMemo(
         () => calculateReadingStats(post?.content ?? ""),
         [post?.content],
@@ -154,16 +192,28 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                                     <span className="fuwari-tag">
                                         ◫ {formatDate(post.publishedAt)}
                                     </span>
-                                    <span className="fuwari-tag">
-                                        ◌ {post.category?.name ?? "未分类"}
-                                    </span>
+                                    {post.category ? (
+                                        <Link
+                                            to={createCategoryPath(
+                                                post.category.id,
+                                            )}
+                                            className="fuwari-tag transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-600"
+                                        >
+                                            ◌ {post.category.name}
+                                        </Link>
+                                    ) : (
+                                        <span className="fuwari-tag">
+                                            ◌ 未分类
+                                        </span>
+                                    )}
                                     {(post.tags ?? []).map((tag) => (
-                                        <span
+                                        <Link
                                             key={tag.id}
-                                            className="fuwari-tag"
+                                            to={createTagPath(tag.id)}
+                                            className="fuwari-tag transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-600"
                                         >
                                             # {tag.name}
-                                        </span>
+                                        </Link>
                                     ))}
                                 </div>
                             </div>
