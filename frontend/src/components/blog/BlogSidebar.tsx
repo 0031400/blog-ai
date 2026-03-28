@@ -28,7 +28,7 @@ export function BlogSidebar({ categories, tags }: BlogSidebarProps) {
         <>
             <section className="fuwari-card-soft">
                 <div className="p-4">
-                    <div className="overflow-hidden rounded-3xl bg-amber-200">
+                    <div className="mx-auto max-w-48 overflow-hidden rounded-3xl bg-amber-200 lg:mx-0 lg:max-w-none">
                         <img
                             src={siteMeta.author.avatar}
                             alt={siteMeta.author.name}
@@ -41,7 +41,7 @@ export function BlogSidebar({ categories, tags }: BlogSidebarProps) {
                         {siteMeta.author.name}
                     </div>
                     <div className="mx-auto mt-3 h-1 w-5 rounded-full bg-sky-400" />
-                    <div className="fuwari-font-ui mx-auto mt-3 max-w-[13rem] text-sm leading-6 text-slate-400">
+                    <div className="fuwari-font-ui mx-auto mt-3 max-w-52 text-sm leading-6 text-slate-400">
                         {siteMeta.author.tagline}
                     </div>
                     <div className="mt-5 flex items-center justify-center gap-3">

@@ -142,11 +142,11 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                                     </span>
                                 </div>
 
-                                <h1 className="fuwari-font-title fuwari-title-bar relative mt-5 block text-[34px] font-bold tracking-[-0.055em] text-slate-950 md:text-[44px]">
+                                <h1 className="fuwari-font-title relative mt-5 block text-[2rem] font-bold tracking-[-0.055em] text-slate-950 md:text-[2.75rem] md:leading-[2.75rem]">
                                     {post.title}
                                 </h1>
 
-                                <div className="mt-5 flex flex-wrap items-center gap-3 text-[15px] text-slate-400">
+                                <div className="mt-5 flex flex-wrap items-center gap-2.5 text-[15px] text-slate-400 md:gap-3">
                                     <span className="fuwari-tag">
                                         ◫ {formatDate(post.publishedAt)}
                                     </span>

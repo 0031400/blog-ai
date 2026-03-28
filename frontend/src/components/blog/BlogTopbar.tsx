@@ -5,19 +5,19 @@ import { siteMeta } from "../../data/site.ts";
 
 export function BlogTopbar() {
     return (
-        <header className="relative z-10 mx-auto max-w-[75rem] px-4 pt-5">
-            <div className="fuwari-card flex flex-col gap-4 bg-white/95 px-5 py-4 backdrop-blur md:flex-row md:items-center md:justify-between md:px-8">
+        <header className="relative z-10 mx-auto max-w-[75rem] px-0 pt-0 transition sm:px-4 sm:pt-5">
+            <div className="fuwari-card flex items-center justify-between gap-3 rounded-none bg-white/95 px-4 py-3 backdrop-blur sm:rounded-[var(--radius-large)] sm:px-5 sm:py-4 md:px-8">
                 <Link
                     to={homePath}
-                    className="fuwari-font-title flex items-center gap-3 text-[17px] font-semibold tracking-[-0.03em] text-sky-500"
+                    className="fuwari-font-title flex min-w-0 items-center gap-3 text-[16px] font-semibold tracking-[-0.03em] text-sky-500 sm:text-[17px]"
                 >
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border-2 border-sky-400 text-sm font-bold">
+                    <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-sky-400 text-sm font-bold">
                         ⌂
                     </span>
-                    <span>{siteMeta.title}</span>
+                    <span className="truncate">{siteMeta.title}</span>
                 </Link>
 
-                <nav className="fuwari-font-ui flex flex-wrap items-center gap-8 text-[15px] font-semibold text-slate-700">
+                <nav className="fuwari-font-ui hidden flex-wrap items-center gap-8 text-[15px] font-semibold text-slate-700 md:flex">
                     <NavLink
                         to={homePath}
                         end
@@ -31,8 +31,8 @@ export function BlogTopbar() {
                     </NavLink>
                 </nav>
 
-                <div className="flex items-center gap-3">
-                    <div className="flex min-w-[10.5rem] items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-400">
+                <div className="flex items-center gap-2 sm:gap-3">
+                    <div className="hidden min-w-[10.5rem] items-center gap-2 rounded-2xl bg-slate-100 px-4 py-3 text-sm text-slate-400 lg:flex">
                         <span>⌕</span>
                         <span>搜索文章...</span>
                     </div>
@@ -44,9 +44,9 @@ export function BlogTopbar() {
                     </button>
                     <Link
                         to={createAdminPath()}
-                        className="fuwari-btn-plain h-10 px-4 text-sm"
+                        className="fuwari-btn-plain h-10 px-3 text-sm sm:px-4"
                     >
-                        登录
+                        管理面板
                     </Link>
                 </div>
             </div>

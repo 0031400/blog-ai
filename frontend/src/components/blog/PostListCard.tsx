@@ -10,13 +10,13 @@ type PostListCardProps = {
 
 export function PostListCard({ post }: PostListCardProps) {
     return (
-        <article className="fuwari-card relative flex flex-col-reverse md:flex-row">
+        <article className="fuwari-card relative flex w-full flex-col-reverse overflow-hidden">
             <Link
                 to={createPostPath(post.slug)}
-                className="grid gap-4 px-6 py-6 md:grid-cols-[minmax(0,1fr)_28%] md:px-9 md:pr-3 md:pt-7"
+                className="relative grid gap-4 px-6 py-6 md:grid-cols-[minmax(0,1fr)_17rem] md:px-9 md:pr-3 md:pt-7"
             >
                 <div className="min-w-0">
-                    <h2 className="fuwari-font-title fuwari-title-bar relative mb-3 block w-full text-3xl font-bold tracking-[-0.045em] text-slate-900 transition hover:text-sky-500 md:text-[2rem]">
+                    <h2 className="fuwari-font-title relative mb-3 block w-full text-[1.9rem] font-bold tracking-[-0.045em] text-slate-900 transition hover:text-sky-500 md:text-[2rem]">
                         {post.title}
                     </h2>
 
@@ -38,7 +38,7 @@ export function PostListCard({ post }: PostListCardProps) {
                         ) : null}
                     </div>
 
-                    <p className="fuwari-font-reading mb-3.5 pr-4 text-[16px] leading-8 text-slate-600">
+                    <p className="fuwari-font-reading mb-3.5 text-[16px] leading-8 text-slate-600 md:pr-4">
                         {post.excerpt}
                     </p>
 
@@ -49,11 +49,11 @@ export function PostListCard({ post }: PostListCardProps) {
                     </div>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl bg-slate-100 md:my-3">
+                <div className="relative mx-1 -mb-1 mt-1 overflow-hidden rounded-2xl bg-slate-100 md:mx-0 md:mb-0 md:mt-0 md:my-3">
                     <img
                         src={post.coverImage}
                         alt={post.title}
-                        className="h-52.5 w-full object-cover"
+                        className="max-h-[20vh] w-full object-cover md:h-full md:max-h-none"
                     />
                 </div>
             </Link>
