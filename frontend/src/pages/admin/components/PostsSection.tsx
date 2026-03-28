@@ -105,11 +105,7 @@ export function PostsSection({
                                     />
                                 </div>
                                 <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                                        <span className="truncate font-medium uppercase tracking-[0.14em]">
-                                            {post.slug}
-                                        </span>
-                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400"></div>
                                     <h2 className="mt-1 truncate text-lg font-medium text-slate-900">
                                         {post.title}
                                     </h2>
