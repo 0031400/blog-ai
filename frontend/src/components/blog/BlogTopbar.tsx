@@ -46,7 +46,7 @@ export function BlogTopbar() {
                         to={createAdminPath()}
                         className="fuwari-btn-plain h-10 px-4 text-sm"
                     >
-                        管理面板
+                        登录
                     </Link>
                 </div>
             </div>
