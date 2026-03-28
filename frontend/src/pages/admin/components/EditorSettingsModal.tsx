@@ -6,34 +6,42 @@ import type { Tag } from "../../../types/tag.ts";
 import { ghostButtonClass, inputClass, primaryButtonClass } from "../shared.ts";
 
 type EditorSettingsModalProps = {
+    busy?: boolean;
     categories: Category[];
     onApply: (patch: Partial<PostFormValues>) => void;
     onClose: () => void;
+    onPublish: (patch: Partial<PostFormValues>) => void;
+    onSave: (patch: Partial<PostFormValues>) => void;
+    submitting?: boolean;
     tags: Tag[];
     values: PostFormValues;
 };
 
 export function EditorSettingsModal({
+    busy = false,
     categories,
     onApply,
     onClose,
+    onPublish,
+    onSave,
+    submitting = false,
     tags,
     values,
 }: EditorSettingsModalProps) {
     const [draft, setDraft] = useState(values);
     const [autoExcerpt, setAutoExcerpt] = useState(!values.excerpt.trim());
 
-    const apply = () => {
+    const buildPatch = (patch?: Partial<PostFormValues>) => {
         const nextExcerpt =
             autoExcerpt && !draft.excerpt.trim()
                 ? draft.content.replace(/\s+/g, " ").trim().slice(0, 120)
                 : draft.excerpt;
 
-        onApply({
+        return {
             ...draft,
+            ...patch,
             excerpt: nextExcerpt,
-        });
-        onClose();
+        };
     };
 
     return (
@@ -227,15 +235,35 @@ export function EditorSettingsModal({
                 <div className="flex items-center gap-3 border-t border-slate-200 px-5 py-4">
                     <button
                         type="button"
-                        onClick={apply}
+                        onClick={() => {
+                            const patch = buildPatch();
+                            onApply(patch);
+                            onSave(patch);
+                            onClose();
+                        }}
                         className={primaryButtonClass}
+                        disabled={submitting || busy}
                     >
                         保存
                     </button>
                     <button
                         type="button"
+                        onClick={() => {
+                            const patch = buildPatch({ status: "published" });
+                            onApply(patch);
+                            onPublish(patch);
+                            onClose();
+                        }}
+                        className={primaryButtonClass}
+                        disabled={submitting || busy}
+                    >
+                        发布
+                    </button>
+                    <button
+                        type="button"
                         onClick={onClose}
                         className={ghostButtonClass}
+                        disabled={submitting || busy}
                     >
                         关闭
                     </button>

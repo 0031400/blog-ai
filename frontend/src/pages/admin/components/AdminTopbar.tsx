@@ -9,11 +9,9 @@ type AdminTopbarProps = {
     editorOpen: boolean;
     onCreatePost: () => void;
     onOpenEditorSettings: () => void;
-    onPublishPost: () => void;
     onRecyclePost: () => void;
     onLogout: () => void;
     selectedPost: Post | null;
-    submitting?: boolean;
     busy?: boolean;
     viewMode: ViewMode;
 };
@@ -22,11 +20,9 @@ export function AdminTopbar({
     editorOpen,
     onCreatePost,
     onOpenEditorSettings,
-    onPublishPost,
     onRecyclePost,
     onLogout,
     selectedPost,
-    submitting = false,
     busy = false,
     viewMode,
 }: AdminTopbarProps) {
@@ -67,14 +63,6 @@ export function AdminTopbar({
                     {editorOpen ? (
                         <>
                             <button
-                                type="submit"
-                                form="post-editor-form"
-                                disabled={submitting || busy}
-                                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                            >
-                                保存
-                            </button>
-                            <button
                                 type="button"
                                 onClick={onOpenEditorSettings}
                                 className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-50"
@@ -91,13 +79,6 @@ export function AdminTopbar({
                                     移入回收站
                                 </button>
                             ) : null}
-                            <button
-                                type="button"
-                                onClick={onPublishPost}
-                                className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
-                            >
-                                发布
-                            </button>
                         </>
                     ) : (
                         <button

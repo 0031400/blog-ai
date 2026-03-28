@@ -9,6 +9,7 @@ import { EditorSettingsModal } from "./EditorSettingsModal.tsx";
 
 type PostEditorSectionProps = {
     applyValues: (patch: Partial<PostFormValues>) => void;
+    busy?: boolean;
     categories: Category[];
     handleChange: (
         field: keyof PostFormValues,
@@ -18,19 +19,26 @@ type PostEditorSectionProps = {
         >,
     ) => void;
     onCloseSettings: () => void;
+    onPublish: (patch: Partial<PostFormValues>) => void;
+    onSave: (patch: Partial<PostFormValues>) => void;
     onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
     settingsOpen: boolean;
+    submitting?: boolean;
     tags: Tag[];
     values: PostFormValues;
 };
 
 export function PostEditorSection({
     applyValues,
+    busy = false,
     categories,
     handleChange,
     onCloseSettings,
+    onPublish,
+    onSave,
     onSubmit,
     settingsOpen,
+    submitting = false,
     tags,
     values,
 }: PostEditorSectionProps) {
@@ -124,9 +132,13 @@ export function PostEditorSection({
 
             {settingsOpen ? (
                 <EditorSettingsModal
+                    busy={busy}
                     categories={categories}
                     onApply={applyValues}
                     onClose={onCloseSettings}
+                    onPublish={onPublish}
+                    onSave={onSave}
+                    submitting={submitting}
                     tags={tags}
                     values={values}
                 />

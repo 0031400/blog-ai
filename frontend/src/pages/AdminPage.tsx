@@ -619,6 +619,68 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         }
     };
 
+    const submitPost = async (patch?: Partial<PostFormValues>) => {
+        setSubmitting(true);
+        setError("");
+        setSuccessMessage("");
+
+        const nextValues = { ...values, ...patch };
+
+        try {
+            const endpoint = isEditingPost
+                ? `${apiBaseUrl}/api/posts/${selectedPost.id}`
+                : `${apiBaseUrl}/api/posts`;
+            const response = await adminFetch(endpoint, {
+                method: isEditingPost ? "PUT" : "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: nextValues.title,
+                    slug: nextValues.slug.trim() || crypto.randomUUID(),
+                    excerpt: nextValues.excerpt,
+                    content: nextValues.content,
+                    coverImage: nextValues.coverImage,
+                    categoryId: Number(nextValues.categoryId),
+                    tagIds: nextValues.tagIds,
+                    readingTime: Number(nextValues.readingTime),
+                    status: nextValues.status,
+                    visibility: nextValues.visibility,
+                    pinned: nextValues.pinned,
+                    allowComment: nextValues.allowComment,
+                    deleted: nextValues.deleted,
+                    publishedAt: new Date(nextValues.publishedAt).toISOString(),
+                }),
+            });
+
+            const payload = (await response.json()) as {
+                data?: Post;
+                error?: string;
+            };
+            if (!response.ok || !payload.data) {
+                throw new Error(
+                    payload.error ??
+                        `Request failed with status ${response.status}`,
+                );
+            }
+
+            if (isEditingPost) {
+                upsertPost(payload.data);
+                setSuccessMessage("文章已更新。");
+            } else {
+                upsertPost(payload.data);
+                setSuccessMessage("文章已创建。");
+            }
+
+            fillPostForm(payload.data, { preserveMessage: true });
+            navigate(createAdminPostEditorPath(payload.data.id), {
+                replace: true,
+            });
+        } catch (submitError) {
+            setError(formatAdminError(submitError, "提交失败，请稍后重试。"));
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
     const handleSoftDelete = async (post: Post) => {
         if (!window.confirm(`确认将《${post.title}》移入回收站吗？`)) return;
         setBusy(true);
@@ -921,12 +983,10 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                         onCreatePost={openCreateEditor}
                         onOpenEditorSettings={() => setEditorSettingsOpen(true)}
                         onLogout={handleLogout}
-                        onPublishPost={resetPostForm}
                         onRecyclePost={() =>
                             selectedPost && handleSoftDelete(selectedPost)
                         }
                         selectedPost={selectedPost}
-                        submitting={submitting}
                         viewMode={activeViewMode}
                     />
 
@@ -964,12 +1024,20 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                             {editorOpen ? (
                                 <PostEditorSection
                                     applyValues={applyValues}
+                                    busy={busy}
                                     categories={categories}
                                     handleChange={handleChange}
                                     onCloseSettings={() =>
                                         setEditorSettingsOpen(false)
                                     }
+                                    onPublish={(patch) => {
+                                        void submitPost(patch);
+                                    }}
+                                    onSave={(patch) => {
+                                        void submitPost(patch);
+                                    }}
                                     settingsOpen={editorSettingsOpen}
+                                    submitting={submitting}
                                     tags={tags}
                                     values={values}
                                     onSubmit={handleSubmit}
