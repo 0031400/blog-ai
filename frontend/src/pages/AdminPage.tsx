@@ -1,16 +1,19 @@
-import {
-    type Dispatch,
-    type ReactNode,
-    type SetStateAction,
-    useEffect,
-    useMemo,
-    useState,
-} from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
 import { createHomePath, createPostPath } from "../lib/routes.ts";
+import {
+    type StatusFilter,
+    type ViewMode,
+    type VisibilityFilter,
+    viewTitle,
+} from "./admin/shared.ts";
+import { CategoriesSection } from "./admin/components/CategoriesSection.tsx";
+import { PostEditorSection } from "./admin/components/PostEditorSection.tsx";
+import { PostsSection } from "./admin/components/PostsSection.tsx";
+import { TagsSection } from "./admin/components/TagsSection.tsx";
 import type { Category } from "../types/category.ts";
 import type { Post } from "../types/post.ts";
 import type { PostFormValues } from "../types/postForm.ts";
@@ -19,10 +22,6 @@ import type { Tag } from "../types/tag.ts";
 type AdminPageProps = {
     apiBaseUrl: string;
 };
-
-type ViewMode = "posts" | "recycle" | "categories" | "tags";
-type StatusFilter = "all" | "draft" | "published";
-type VisibilityFilter = "all" | "public" | "private";
 
 const createInitialValues = (): PostFormValues => ({
     title: "",
@@ -819,242 +818,21 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                     ) : null}
 
                     {editorOpen ? (
-                        <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
-                            <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 md:flex-row md:items-start md:justify-between">
-                                <div>
-                                    <div className="text-sm font-medium text-slate-900">
-                                        {isEditingPost
-                                            ? "编辑文章"
-                                            : "新建文章"}
-                                    </div>
-                                    <div className="mt-1 text-sm text-slate-500">
-                                        Slug 预览：`/posts/{slugPreview}`
-                                    </div>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={resetPostForm}
-                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
-                                >
-                                    关闭编辑器
-                                </button>
-                            </div>
-
-                            <form
-                                onSubmit={handleSubmit}
-                                className="space-y-4 px-4 py-4"
-                            >
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="标题">
-                                        <input
-                                            value={values.title}
-                                            onChange={handleChange("title")}
-                                            required
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                    <Field label="Slug">
-                                        <input
-                                            value={values.slug}
-                                            onChange={handleChange("slug")}
-                                            required
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="摘要">
-                                        <textarea
-                                            value={values.excerpt}
-                                            onChange={handleChange("excerpt")}
-                                            required
-                                            rows={3}
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                    <Field label="封面图 URL">
-                                        <input
-                                            value={values.coverImage}
-                                            onChange={handleChange(
-                                                "coverImage",
-                                            )}
-                                            required
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                </div>
-
-                                <Field label="正文">
-                                    <textarea
-                                        value={values.content}
-                                        onChange={handleChange("content")}
-                                        required
-                                        rows={10}
-                                        className={inputClass}
-                                    />
-                                </Field>
-
-                                <div className="grid gap-4 md:grid-cols-4">
-                                    <Field label="分类">
-                                        <select
-                                            value={values.categoryId}
-                                            onChange={handleChange(
-                                                "categoryId",
-                                            )}
-                                            className={inputClass}
-                                        >
-                                            <option value="">选择分类</option>
-                                            {categories.map((category) => (
-                                                <option
-                                                    key={category.id}
-                                                    value={category.id}
-                                                >
-                                                    {category.name}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </Field>
-                                    <Field label="标签">
-                                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                            {tags.length ? (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {tags.map((tag) => {
-                                                        const selected =
-                                                            values.tagIds.includes(
-                                                                tag.id,
-                                                            );
-
-                                                        return (
-                                                            <button
-                                                                key={tag.id}
-                                                                type="button"
-                                                                onClick={() =>
-                                                                    toggleTagSelection(
-                                                                        tag.id,
-                                                                    )
-                                                                }
-                                                                className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                                                                    selected
-                                                                        ? "border-slate-900 bg-slate-900 text-white"
-                                                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                                                }`}
-                                                            >
-                                                                #{tag.name}
-                                                            </button>
-                                                        );
-                                                    })}
-                                                </div>
-                                            ) : (
-                                                <div className="text-sm text-slate-500">
-                                                    还没有可用标签，请先去“标签”里创建。
-                                                </div>
-                                            )}
-                                        </div>
-                                    </Field>
-                                    <Field label="阅读时长">
-                                        <input
-                                            min="1"
-                                            type="number"
-                                            value={values.readingTime}
-                                            onChange={handleChange(
-                                                "readingTime",
-                                            )}
-                                            required
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                    <Field label="发布时间">
-                                        <input
-                                            type="datetime-local"
-                                            value={values.publishedAt}
-                                            onChange={handleChange(
-                                                "publishedAt",
-                                            )}
-                                            required
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                </div>
-
-                                <div className="grid gap-4 md:grid-cols-2">
-                                    <Field label="发布状态">
-                                        <select
-                                            value={values.status}
-                                            onChange={handleChange("status")}
-                                            className={inputClass}
-                                        >
-                                            <option value="draft">草稿</option>
-                                            <option value="published">
-                                                已发布
-                                            </option>
-                                        </select>
-                                    </Field>
-                                    <Field label="可见性">
-                                        <select
-                                            value={values.visibility}
-                                            onChange={handleChange(
-                                                "visibility",
-                                            )}
-                                            className={inputClass}
-                                        >
-                                            <option value="public">公开</option>
-                                            <option value="private">
-                                                私密
-                                            </option>
-                                        </select>
-                                    </Field>
-                                </div>
-
-                                <div className="flex flex-wrap gap-4 rounded-xl bg-slate-50 px-4 py-3">
-                                    <label className="flex items-center gap-2 text-sm text-slate-600">
-                                        <input
-                                            type="checkbox"
-                                            checked={values.pinned}
-                                            onChange={handleChange("pinned")}
-                                        />
-                                        <span>置顶文章</span>
-                                    </label>
-                                    <label className="flex items-center gap-2 text-sm text-slate-600">
-                                        <input
-                                            type="checkbox"
-                                            checked={values.allowComment}
-                                            onChange={handleChange(
-                                                "allowComment",
-                                            )}
-                                        />
-                                        <span>允许评论</span>
-                                    </label>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    <button
-                                        type="submit"
-                                        disabled={submitting || busy}
-                                        className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
-                                    >
-                                        {submitting
-                                            ? "提交中..."
-                                            : isEditingPost
-                                              ? "保存修改"
-                                              : "创建文章"}
-                                    </button>
-                                    {isEditingPost && !selectedPost?.deleted ? (
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                selectedPost &&
-                                                handleSoftDelete(selectedPost)
-                                            }
-                                            disabled={busy}
-                                            className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600 disabled:opacity-60"
-                                        >
-                                            移入回收站
-                                        </button>
-                                    ) : null}
-                                </div>
-                            </form>
-                        </section>
+                        <PostEditorSection
+                            busy={busy}
+                            categories={categories}
+                            handleChange={handleChange}
+                            handleSoftDelete={handleSoftDelete}
+                            isEditingPost={isEditingPost}
+                            resetPostForm={resetPostForm}
+                            selectedPost={selectedPost}
+                            slugPreview={slugPreview}
+                            submitting={submitting}
+                            tags={tags}
+                            toggleTagSelection={toggleTagSelection}
+                            values={values}
+                            onSubmit={handleSubmit}
+                        />
                     ) : null}
 
                     {(viewMode === "posts" || viewMode === "recycle") && (
@@ -1077,552 +855,45 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                     )}
 
                     {viewMode === "categories" && (
-                        <section className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-                            <TaxonomyFormCard
-                                title={
-                                    editingCategoryId ? "编辑分类" : "新建分类"
-                                }
-                            >
-                                <form
-                                    onSubmit={submitCategory}
-                                    className="space-y-4"
-                                >
-                                    <Field label="名称">
-                                        <input
-                                            value={categoryName}
-                                            onChange={(event) =>
-                                                setCategoryName(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            className={inputClass}
-                                            required
-                                        />
-                                    </Field>
-                                    <Field label="Slug">
-                                        <input
-                                            value={categorySlug}
-                                            onChange={(event) =>
-                                                setCategorySlug(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="submit"
-                                            disabled={busy}
-                                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
-                                        >
-                                            保存
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={resetCategoryForm}
-                                            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600"
-                                        >
-                                            重置
-                                        </button>
-                                    </div>
-                                </form>
-                            </TaxonomyFormCard>
-
-                            <TaxonomyListCard title="分类列表">
-                                {categories.map((category) => (
-                                    <TaxonomyRow
-                                        key={category.id}
-                                        actions={
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setEditingCategoryId(
-                                                            category.id,
-                                                        );
-                                                        setCategoryName(
-                                                            category.name,
-                                                        );
-                                                        setCategorySlug(
-                                                            category.slug,
-                                                        );
-                                                    }}
-                                                    className={
-                                                        secondaryButtonClass
-                                                    }
-                                                >
-                                                    编辑
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        deleteCategory(category)
-                                                    }
-                                                    className={
-                                                        dangerButtonClass
-                                                    }
-                                                >
-                                                    删除
-                                                </button>
-                                            </>
-                                        }
-                                        meta={`使用文章 ${
-                                            categoryUsage.get(category.name) ??
-                                            0
-                                        } 篇`}
-                                        title={category.name}
-                                    />
-                                ))}
-                            </TaxonomyListCard>
-                        </section>
+                        <CategoriesSection
+                            busy={busy}
+                            categories={categories}
+                            categoryName={categoryName}
+                            categorySlug={categorySlug}
+                            categoryUsage={categoryUsage}
+                            deleteCategory={deleteCategory}
+                            editingCategoryId={editingCategoryId}
+                            resetCategoryForm={resetCategoryForm}
+                            setCategoryName={setCategoryName}
+                            setCategorySlug={setCategorySlug}
+                            setEditingCategoryId={setEditingCategoryId}
+                            submitCategory={submitCategory}
+                        />
                     )}
 
                     {viewMode === "tags" && (
-                        <section className="mt-4 grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-                            <TaxonomyFormCard
-                                title={editingTagId ? "编辑标签" : "新建标签"}
-                            >
-                                <form
-                                    onSubmit={submitTag}
-                                    className="space-y-4"
-                                >
-                                    <Field label="名称">
-                                        <input
-                                            value={tagName}
-                                            onChange={(event) =>
-                                                setTagName(event.target.value)
-                                            }
-                                            className={inputClass}
-                                            required
-                                        />
-                                    </Field>
-                                    <Field label="Slug">
-                                        <input
-                                            value={tagSlug}
-                                            onChange={(event) =>
-                                                setTagSlug(event.target.value)
-                                            }
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                    <Field label="颜色">
-                                        <input
-                                            value={tagColor}
-                                            onChange={(event) =>
-                                                setTagColor(event.target.value)
-                                            }
-                                            className={inputClass}
-                                            placeholder="#0f172a"
-                                        />
-                                    </Field>
-                                    <div className="flex gap-2">
-                                        <button
-                                            type="submit"
-                                            disabled={busy}
-                                            className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
-                                        >
-                                            保存
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={resetTagForm}
-                                            className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600"
-                                        >
-                                            重置
-                                        </button>
-                                    </div>
-                                </form>
-                            </TaxonomyFormCard>
-
-                            <TaxonomyListCard title="标签列表">
-                                {tags.map((tag) => (
-                                    <TaxonomyRow
-                                        key={tag.id}
-                                        actions={
-                                            <>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setEditingTagId(tag.id);
-                                                        setTagName(tag.name);
-                                                        setTagSlug(tag.slug);
-                                                        setTagColor(tag.color);
-                                                    }}
-                                                    className={
-                                                        secondaryButtonClass
-                                                    }
-                                                >
-                                                    编辑
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        deleteTag(tag)
-                                                    }
-                                                    className={
-                                                        dangerButtonClass
-                                                    }
-                                                >
-                                                    删除
-                                                </button>
-                                            </>
-                                        }
-                                        meta={`使用文章 ${
-                                            tagUsage.get(tag.name) ?? 0
-                                        } 篇`}
-                                        swatch={tag.color}
-                                        title={tag.name}
-                                    />
-                                ))}
-                            </TaxonomyListCard>
-                        </section>
+                        <TagsSection
+                            busy={busy}
+                            deleteTag={deleteTag}
+                            editingTagId={editingTagId}
+                            resetTagForm={resetTagForm}
+                            setEditingTagId={setEditingTagId}
+                            setTagColor={setTagColor}
+                            setTagName={setTagName}
+                            setTagSlug={setTagSlug}
+                            submitTag={submitTag}
+                            tagColor={tagColor}
+                            tagName={tagName}
+                            tagSlug={tagSlug}
+                            tagUsage={tagUsage}
+                            tags={tags}
+                        />
                     )}
                 </div>
             </main>
         </div>
     );
 }
-
-function PostsSection({
-    busy,
-    filteredPosts,
-    formatPostDate,
-    handleRestore,
-    handleSoftDelete,
-    keyword,
-    openEditEditor,
-    quickUpdatePost,
-    setKeyword,
-    setStatusFilter,
-    setVisibilityFilter,
-    statusFilter,
-    viewMode,
-    visibilityFilter,
-}: {
-    busy: boolean;
-    filteredPosts: Post[];
-    formatPostDate: (value: string) => string;
-    handleRestore: (post: Post) => Promise<void>;
-    handleSoftDelete: (post: Post) => Promise<void>;
-    keyword: string;
-    openEditEditor: (post: Post) => void;
-    quickUpdatePost: (
-        post: Post,
-        patch: Partial<Post>,
-        successText: string,
-    ) => Promise<void>;
-    setKeyword: Dispatch<SetStateAction<string>>;
-    setStatusFilter: Dispatch<SetStateAction<StatusFilter>>;
-    setVisibilityFilter: Dispatch<SetStateAction<VisibilityFilter>>;
-    statusFilter: StatusFilter;
-    viewMode: ViewMode;
-    visibilityFilter: VisibilityFilter;
-}) {
-    return (
-        <section className="mt-4 rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                    <div className="text-sm font-medium text-slate-900">
-                        文章列表
-                    </div>
-                    <div className="mt-1 text-sm text-slate-500">
-                        支持草稿/发布、可见性、标签和回收站筛选。
-                    </div>
-                </div>
-                <div className="grid gap-2 md:grid-cols-2 lg:flex">
-                    <input
-                        value={keyword}
-                        onChange={(event) => setKeyword(event.target.value)}
-                        placeholder="搜索标题、分类、slug、标签"
-                        className={`${inputClass} min-w-60`}
-                    />
-                    <select
-                        value={statusFilter}
-                        onChange={(event) =>
-                            setStatusFilter(event.target.value as StatusFilter)
-                        }
-                        className={inputClass}
-                    >
-                        <option value="all">全部状态</option>
-                        <option value="published">已发布</option>
-                        <option value="draft">草稿</option>
-                    </select>
-                    <select
-                        value={visibilityFilter}
-                        onChange={(event) =>
-                            setVisibilityFilter(
-                                event.target.value as VisibilityFilter,
-                            )
-                        }
-                        className={inputClass}
-                    >
-                        <option value="all">全部可见性</option>
-                        <option value="public">公开</option>
-                        <option value="private">私密</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-                {filteredPosts.map((post) => (
-                    <article key={post.id} className="px-4 py-4">
-                        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                            <div className="flex min-w-0 gap-3">
-                                <img
-                                    src={post.coverImage}
-                                    alt={post.title}
-                                    className="h-20 w-20 rounded-lg object-cover"
-                                />
-                                <div className="min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                                        <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium normal-case tracking-normal text-slate-600">
-                                            {post.category?.name ?? "未分类"}
-                                        </span>
-                                        <span
-                                            className={`rounded-full px-2 py-1 normal-case tracking-normal ${
-                                                post.status === "published"
-                                                    ? "bg-emerald-50 text-emerald-700"
-                                                    : "bg-amber-50 text-amber-700"
-                                            }`}
-                                        >
-                                            {post.status === "published"
-                                                ? "已发布"
-                                                : "草稿"}
-                                        </span>
-                                        <span
-                                            className={`rounded-full px-2 py-1 normal-case tracking-normal ${
-                                                post.visibility === "public"
-                                                    ? "bg-sky-50 text-sky-700"
-                                                    : "bg-slate-100 text-slate-700"
-                                            }`}
-                                        >
-                                            {post.visibility === "public"
-                                                ? "公开"
-                                                : "私密"}
-                                        </span>
-                                        {post.pinned ? (
-                                            <span className="rounded-full bg-rose-50 px-2 py-1 normal-case tracking-normal text-rose-700">
-                                                置顶
-                                            </span>
-                                        ) : null}
-                                        <span>
-                                            {formatPostDate(post.publishedAt)}
-                                        </span>
-                                    </div>
-                                    <h2 className="mt-2 truncate text-base font-semibold text-slate-900">
-                                        {post.title}
-                                    </h2>
-                                    <p className="mt-1 text-sm leading-6 text-slate-500">
-                                        {post.excerpt}
-                                    </p>
-                                    {(post.tags ?? []).length ? (
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {(post.tags ?? []).map((tag) => (
-                                                <span
-                                                    key={`${post.id}-${tag.id}`}
-                                                    className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600"
-                                                >
-                                                    #{tag.name}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    ) : null}
-                                </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                                {!post.deleted ? (
-                                    <>
-                                        <button
-                                            type="button"
-                                            onClick={() => openEditEditor(post)}
-                                            className={secondaryButtonClass}
-                                        >
-                                            编辑
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                quickUpdatePost(
-                                                    post,
-                                                    {
-                                                        status:
-                                                            post.status ===
-                                                            "published"
-                                                                ? "draft"
-                                                                : "published",
-                                                    },
-                                                    post.status === "published"
-                                                        ? "已转为草稿。"
-                                                        : "已发布。",
-                                                )
-                                            }
-                                            disabled={busy}
-                                            className={secondaryButtonClass}
-                                        >
-                                            {post.status === "published"
-                                                ? "转为草稿"
-                                                : "发布"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                quickUpdatePost(
-                                                    post,
-                                                    {
-                                                        visibility:
-                                                            post.visibility ===
-                                                            "public"
-                                                                ? "private"
-                                                                : "public",
-                                                    },
-                                                    post.visibility === "public"
-                                                        ? "已设为私密。"
-                                                        : "已设为公开。",
-                                                )
-                                            }
-                                            disabled={busy}
-                                            className={secondaryButtonClass}
-                                        >
-                                            {post.visibility === "public"
-                                                ? "设为私密"
-                                                : "设为公开"}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                handleSoftDelete(post)
-                                            }
-                                            disabled={busy}
-                                            className={dangerButtonClass}
-                                        >
-                                            回收
-                                        </button>
-                                    </>
-                                ) : (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleRestore(post)}
-                                        disabled={busy}
-                                        className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 disabled:opacity-60"
-                                    >
-                                        恢复
-                                    </button>
-                                )}
-                            </div>
-                        </div>
-                    </article>
-                ))}
-
-                {filteredPosts.length === 0 ? (
-                    <div className="px-4 py-8 text-center text-sm text-slate-500">
-                        {viewMode === "recycle"
-                            ? "回收站为空。"
-                            : "没有匹配的文章。"}
-                    </div>
-                ) : null}
-            </div>
-        </section>
-    );
-}
-
-function TaxonomyFormCard({
-    children,
-    title,
-}: {
-    children: ReactNode;
-    title: string;
-}) {
-    return (
-        <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-            <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-            <div className="mt-4">{children}</div>
-        </section>
-    );
-}
-
-function TaxonomyListCard({
-    children,
-    title,
-}: {
-    children: ReactNode;
-    title: string;
-}) {
-    return (
-        <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 px-4 py-4 text-base font-semibold text-slate-900">
-                {title}
-            </div>
-            <div className="divide-y divide-slate-100">{children}</div>
-        </section>
-    );
-}
-
-function TaxonomyRow({
-    actions,
-    meta,
-    swatch,
-    title,
-}: {
-    actions: ReactNode;
-    meta: string;
-    swatch?: string;
-    title: string;
-}) {
-    return (
-        <div className="flex flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
-            <div className="flex items-center gap-3">
-                {swatch ? (
-                    <span
-                        className="h-4 w-4 rounded-full border border-slate-200"
-                        style={{ backgroundColor: swatch }}
-                    />
-                ) : null}
-                <div>
-                    <div className="text-sm font-medium text-slate-900">
-                        {title}
-                    </div>
-                    <div className="mt-1 text-sm text-slate-500">{meta}</div>
-                </div>
-            </div>
-            <div className="flex flex-wrap gap-2">{actions}</div>
-        </div>
-    );
-}
-
-function Field({ label, children }: { label: string; children: ReactNode }) {
-    return (
-        <label className="block">
-            <span className="mb-2 block text-sm font-medium text-slate-700">
-                {label}
-            </span>
-            {children}
-        </label>
-    );
-}
-
-function viewTitle(viewMode: ViewMode) {
-    switch (viewMode) {
-        case "posts":
-            return "文章管理";
-        case "recycle":
-            return "回收站";
-        case "categories":
-            return "分类管理";
-        case "tags":
-            return "标签管理";
-    }
-}
-
-const inputClass =
-    "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:ring-4 focus:ring-slate-100";
-
-const secondaryButtonClass =
-    "rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 disabled:opacity-60";
-
-const dangerButtonClass =
-    "rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600 disabled:opacity-60";
 
 function toSlug(value: string) {
     return value
