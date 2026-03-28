@@ -36,7 +36,7 @@ const createInitialValues = (): PostFormValues => ({
     content: "",
     coverImage: "",
     category: "",
-    tags: "",
+    tags: [],
     readingTime: "5",
     status: "draft",
     visibility: "public",
@@ -225,7 +225,7 @@ export function AdminPage({
             content: post.content,
             coverImage: post.coverImage,
             category: post.category,
-            tags: (post.tags ?? []).join(", "),
+            tags: [...(post.tags ?? [])],
             readingTime: String(post.readingTime),
             status: post.status,
             visibility: post.visibility,
@@ -244,13 +244,19 @@ export function AdminPage({
 
     const buildPostPayload = () => ({
         ...values,
-        tags: values.tags
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter(Boolean),
+        tags: values.tags,
         readingTime: Number(values.readingTime),
         publishedAt: new Date(values.publishedAt).toISOString(),
     });
+
+    const toggleTagSelection = (tagName: string) => {
+        setValues((currentValues) => ({
+            ...currentValues,
+            tags: currentValues.tags.includes(tagName)
+                ? currentValues.tags.filter((tag) => tag !== tagName)
+                : [...currentValues.tags, tagName],
+        }));
+    };
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -795,21 +801,41 @@ export function AdminPage({
                                         </select>
                                     </Field>
                                     <Field label="标签">
-                                        <input
-                                            value={values.tags}
-                                            onChange={handleChange("tags")}
-                                            list="tag-options"
-                                            placeholder="React, Go, 设计"
-                                            className={inputClass}
-                                        />
-                                        <datalist id="tag-options">
-                                            {tags.map((tag) => (
-                                                <option
-                                                    key={tag.id}
-                                                    value={tag.name}
-                                                />
-                                            ))}
-                                        </datalist>
+                                        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                                            {tags.length ? (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {tags.map((tag) => {
+                                                        const selected =
+                                                            values.tags.includes(
+                                                                tag.name,
+                                                            );
+
+                                                        return (
+                                                            <button
+                                                                key={tag.id}
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    toggleTagSelection(
+                                                                        tag.name,
+                                                                    )
+                                                                }
+                                                                className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                                                                    selected
+                                                                        ? "border-slate-900 bg-slate-900 text-white"
+                                                                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                                                                }`}
+                                                            >
+                                                                #{tag.name}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            ) : (
+                                                <div className="text-sm text-slate-500">
+                                                    还没有可用标签，请先去“标签”里创建。
+                                                </div>
+                                            )}
+                                        </div>
                                     </Field>
                                     <Field label="阅读时长">
                                         <input

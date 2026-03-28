@@ -5,7 +5,7 @@ export type PostFormValues = {
     content: string;
     coverImage: string;
     category: string;
-    tags: string;
+    tags: string[];
     readingTime: string;
     status: "draft" | "published";
     visibility: "public" | "private";
