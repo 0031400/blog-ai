@@ -1220,7 +1220,7 @@ function PostsSection({
                         value={keyword}
                         onChange={(event) => setKeyword(event.target.value)}
                         placeholder="搜索标题、分类、slug、标签"
-                        className={`${inputClass} min-w-[240px]`}
+                        className={`${inputClass} min-w-60`}
                     />
                     <select
                         value={statusFilter}
