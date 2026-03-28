@@ -4,7 +4,6 @@ import { useParams } from "react-router-dom";
 import { BlogFrame } from "../components/blog/BlogFrame.tsx";
 import { BlogSidebar } from "../components/blog/BlogSidebar.tsx";
 import { MarkdownContent } from "../components/MarkdownContent.tsx";
-import { PreviewableImage } from "../components/PreviewableImage.tsx";
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
 import type { Post } from "../types/post.ts";
@@ -166,14 +165,6 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                             </div>
 
                             <div className="px-6 py-8 md:px-9">
-                                <div className="mb-8 overflow-hidden rounded-3xl">
-                                    <PreviewableImage
-                                        src={post.coverImage}
-                                        alt={post.title}
-                                        className="h-65 w-full object-cover"
-                                    />
-                                </div>
-
                                 <MarkdownContent content={post.content} />
                             </div>
                         </article>
