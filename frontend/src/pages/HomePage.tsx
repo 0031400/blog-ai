@@ -1,69 +1,50 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 
-import { WingLayout } from "../components/WingLayout";
+import { BlogFrame } from "../components/blog/BlogFrame.tsx";
+import { BlogSidebar } from "../components/blog/BlogSidebar.tsx";
+import { PostListCard } from "../components/blog/PostListCard.tsx";
 import { fallbackPosts } from "../data/fallbackPosts.ts";
-import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
-import { createAdminPath, createPostPath, homePath } from "../lib/routes.ts";
 import type { Post } from "../types/post.ts";
 
 type HomePageProps = {
     apiBaseUrl: string;
 };
 
-function ArticleCard({
-    post,
-    featured = false,
-}: {
-    post: Post;
-    featured?: boolean;
-}) {
-    return (
-        <article className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-            <Link
-                to={createPostPath(post.slug)}
-                className={`grid items-start gap-4 ${featured ? "md:grid-cols-[minmax(0,1fr)_220px]" : "md:grid-cols-[minmax(0,1fr)_160px]"}`}
-            >
-                <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-medium normal-case tracking-normal text-rose-600">
-                            {post.category?.name ?? "未分类"}
-                        </span>
-                        <span>
-                            {formatDate(post.publishedAt)} · {post.readingTime}{" "}
-                            min
-                        </span>
-                    </div>
-                    <h3
-                        className={`mt-3 font-semibold tracking-[-0.03em] text-slate-900 ${featured ? "text-2xl" : "text-lg"}`}
-                    >
-                        {post.title}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                        {post.excerpt}
-                    </p>
-                    <div className="mt-3 text-sm font-medium text-rose-600">
-                        阅读全文
-                    </div>
-                </div>
-                <div
-                    className={`overflow-hidden rounded-xl ${featured ? "h-40 md:h-full" : "h-28"}`}
-                >
-                    <img
-                        src={post.coverImage}
-                        alt={post.title}
-                        className="h-full w-full object-cover"
-                    />
-                </div>
-            </Link>
-        </article>
-    );
+function buildCategoryItems(posts: Post[]) {
+    const counts = new Map<string, number>();
+
+    posts.forEach((post) => {
+        const name = post.category?.name ?? "未分类";
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+
+    return [...counts.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 6);
+}
+
+function buildTagItems(posts: Post[]) {
+    const tags = new Set<string>();
+
+    posts.forEach((post) => {
+        (post.tags ?? []).forEach((tag) => tags.add(tag.name));
+    });
+
+    return [...tags].slice(0, 18);
 }
 
 export function HomePage({ apiBaseUrl }: HomePageProps) {
     const [posts, setPosts] = useState<Post[]>(() =>
-        fallbackPosts.map(normalizePost),
+        fallbackPosts
+            .map(normalizePost)
+            .filter(
+                (post) =>
+                    !post.deleted &&
+                    post.status === "published" &&
+                    post.visibility === "public",
+            ),
     );
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -92,7 +73,16 @@ export function HomePage({ apiBaseUrl }: HomePageProps) {
                     return;
                 }
 
-                setPosts(fallbackPosts.map(normalizePost));
+                setPosts(
+                    fallbackPosts
+                        .map(normalizePost)
+                        .filter(
+                            (post) =>
+                                !post.deleted &&
+                                post.status === "published" &&
+                                post.visibility === "public",
+                        ),
+                );
                 setError("后端暂时未连接，当前展示的是本地示例内容。");
             } finally {
                 setLoading(false);
@@ -106,146 +96,39 @@ export function HomePage({ apiBaseUrl }: HomePageProps) {
         };
     }, [apiBaseUrl]);
 
-    const featuredPost = posts[0];
-    const latestPosts = useMemo(() => posts.slice(1), [posts]);
-
-    const rightAside = (
-        <>
-            <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                        精选文章
-                    </h3>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        Feature
-                    </span>
-                </div>
-                {featuredPost ? (
-                    <Link
-                        to={createPostPath(featuredPost.slug)}
-                        className="mt-3 block overflow-hidden rounded-xl border border-slate-200"
-                    >
-                        <div className="h-36">
-                            <img
-                                src={featuredPost.coverImage}
-                                alt={featuredPost.title}
-                                className="h-full w-full object-cover"
-                            />
-                        </div>
-                        <div className="p-3">
-                            <div className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                                {featuredPost.category?.name ?? "未分类"}
-                            </div>
-                            <div className="mt-2 text-base font-semibold tracking-[-0.03em] text-slate-900">
-                                {featuredPost.title}
-                            </div>
-                            <p className="mt-2 text-sm leading-6 text-slate-500">
-                                {featuredPost.excerpt}
-                            </p>
-                        </div>
-                    </Link>
-                ) : (
-                    <div className="mt-3 rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                        暂无精选文章
-                    </div>
-                )}
-            </section>
-
-            <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                        更新状态
-                    </h3>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        Sync
-                    </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            {loading ? "同步中" : "已加载"}
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            {loading
-                                ? "正在请求最新公开文章。"
-                                : "首页内容已从当前路由页面内加载。"}
-                        </p>
-                    </div>
-                </div>
-            </section>
-        </>
-    );
+    const categoryItems = useMemo(() => buildCategoryItems(posts), [posts]);
+    const tagItems = useMemo(() => buildTagItems(posts), [posts]);
 
     return (
-        <WingLayout
-            rightAside={rightAside}
+        <BlogFrame
+            leftAside={
+                <BlogSidebar categories={categoryItems} tags={tagItems} />
+            }
             main={
                 <>
-                    <section className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 p-2 shadow-sm">
-                        <Link
-                            to={homePath}
-                            className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white"
-                        >
-                            文章
-                        </Link>
-                        <Link
-                            to={homePath}
-                            className="rounded-xl px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
-                        >
-                            笔记
-                        </Link>
-                        <Link
-                            to={createAdminPath()}
-                            className="ml-auto rounded-xl px-3 py-2 text-sm text-rose-600 hover:bg-rose-50"
-                        >
-                            写新文章
-                        </Link>
+                    {error ? (
+                        <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+                            {error}
+                        </div>
+                    ) : null}
+
+                    {loading ? (
+                        <div className="rounded-[28px] bg-white px-5 py-6 text-sm text-slate-500 shadow-[0_10px_28px_rgba(96,121,148,0.10)]">
+                            正在同步最新文章...
+                        </div>
+                    ) : null}
+
+                    <section className="space-y-5">
+                        {posts.map((post) => (
+                            <PostListCard key={post.id} post={post} />
+                        ))}
                     </section>
 
-                    <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-5 shadow-sm">
-                        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                            <div>
-                                <span className="text-[11px] uppercase tracking-[0.18em] text-slate-400">
-                                    Homepage
-                                </span>
-                                <h1 className="mt-2 text-[30px] font-semibold tracking-[-0.05em] text-slate-900 md:text-[34px]">
-                                    更接近 Wing 的三栏博客首页
-                                </h1>
-                                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                                    收紧字号、边距和圆角，只保留左侧信息、中间文章流、右侧辅助栏这三个主要区域。
-                                </p>
-                            </div>
-                            {featuredPost ? (
-                                <Link
-                                    to={createPostPath(featuredPost.slug)}
-                                    className="rounded-full bg-rose-500 px-4 py-2 text-sm text-white"
-                                >
-                                    进入精选文章
-                                </Link>
-                            ) : null}
+                    {!loading && posts.length === 0 ? (
+                        <div className="rounded-[28px] bg-white px-5 py-6 text-sm text-slate-500 shadow-[0_10px_28px_rgba(96,121,148,0.10)]">
+                            暂时没有文章内容。
                         </div>
-
-                        {error ? (
-                            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-700">
-                                {error}
-                            </div>
-                        ) : null}
-
-                        <div className="mt-4 space-y-3">
-                            {featuredPost ? (
-                                <ArticleCard post={featuredPost} featured />
-                            ) : null}
-                            {latestPosts.map((post) => (
-                                <ArticleCard key={post.id} post={post} />
-                            ))}
-                        </div>
-
-                        {!featuredPost && latestPosts.length === 0 ? (
-                            <div className="mt-4 rounded-xl border border-dashed border-slate-200 px-3 py-4 text-sm text-slate-500">
-                                暂时没有文章内容
-                            </div>
-                        ) : null}
-                    </section>
+                    ) : null}
                 </>
             }
         />

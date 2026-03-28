@@ -1,45 +1,103 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams } from "react-router-dom";
 
-import { WingLayout } from "../components/WingLayout";
+import { BlogFrame } from "../components/blog/BlogFrame.tsx";
+import { BlogSidebar } from "../components/blog/BlogSidebar.tsx";
+import { fallbackPosts } from "../data/fallbackPosts.ts";
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
-import { createHomePath } from "../lib/routes.ts";
 import type { Post } from "../types/post.ts";
 
 type PostDetailPageProps = {
     apiBaseUrl: string;
 };
 
+function buildCategoryItems(posts: Post[]) {
+    const counts = new Map<string, number>();
+
+    posts.forEach((post) => {
+        const name = post.category?.name ?? "未分类";
+        counts.set(name, (counts.get(name) ?? 0) + 1);
+    });
+
+    return [...counts.entries()]
+        .map(([name, count]) => ({ name, count }))
+        .sort((left, right) => right.count - left.count)
+        .slice(0, 6);
+}
+
+function buildTagItems(posts: Post[]) {
+    const tags = new Set<string>();
+
+    posts.forEach((post) => {
+        (post.tags ?? []).forEach((tag) => tags.add(tag.name));
+    });
+
+    return [...tags].slice(0, 18);
+}
+
+function splitParagraphs(content: string) {
+    return content
+        .split(/\n+/)
+        .flatMap((block) => block.split("。"))
+        .map((paragraph) => paragraph.trim())
+        .filter(Boolean)
+        .map((paragraph) =>
+            paragraph.endsWith("。") ? paragraph : `${paragraph}。`,
+        );
+}
+
 export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
     const { slug = "" } = useParams();
     const [post, setPost] = useState<Post | null>(null);
+    const [publicPosts, setPublicPosts] = useState<Post[]>(
+        fallbackPosts
+            .map(normalizePost)
+            .filter(
+                (item) =>
+                    !item.deleted &&
+                    item.status === "published" &&
+                    item.visibility === "public",
+            ),
+    );
     const [detailLoading, setDetailLoading] = useState(false);
     const [detailError, setDetailError] = useState("");
 
     useEffect(() => {
         if (!slug) {
             setPost(null);
-            setDetailError("暂时没有找到这篇文章");
+            setDetailError("暂时没有找到这篇文章。");
             return;
         }
 
         const controller = new AbortController();
 
-        const loadPost = async () => {
+        const loadData = async () => {
             setDetailLoading(true);
 
             try {
-                const response = await fetch(`${apiBaseUrl}/api/posts/${slug}`, {
-                    signal: controller.signal,
-                });
+                const [postResponse, postsResponse] = await Promise.all([
+                    fetch(`${apiBaseUrl}/api/posts/${slug}`, {
+                        signal: controller.signal,
+                    }),
+                    fetch(`${apiBaseUrl}/api/posts`, {
+                        signal: controller.signal,
+                    }),
+                ]);
 
-                if (!response.ok) {
-                    throw new Error(`Request failed with status ${response.status}`);
+                if (!postResponse.ok) {
+                    throw new Error(`Request failed with status ${postResponse.status}`);
                 }
 
-                const payload: { data: Post } = await response.json();
-                setPost(normalizePost(payload.data));
+                const postPayload: { data: Post } = await postResponse.json();
+                setPost(normalizePost(postPayload.data));
+
+                if (postsResponse.ok) {
+                    const postsPayload: { data: Post[] } =
+                        await postsResponse.json();
+                    setPublicPosts(postsPayload.data.map(normalizePost));
+                }
+
                 setDetailError("");
             } catch (fetchError) {
                 if (
@@ -49,168 +107,137 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                     return;
                 }
 
-                setPost(null);
-                setDetailError("这篇文章暂时无法加载。");
+                const fallbackPost =
+                    fallbackPosts.map(normalizePost).find((item) => item.slug === slug) ??
+                    null;
+                setPost(fallbackPost);
+                setPublicPosts(
+                    fallbackPosts
+                        .map(normalizePost)
+                        .filter(
+                            (item) =>
+                                !item.deleted &&
+                                item.status === "published" &&
+                                item.visibility === "public",
+                        ),
+                );
+                setDetailError("这篇文章暂时无法加载，当前展示的是本地示例内容。");
             } finally {
                 setDetailLoading(false);
             }
         };
 
-        void loadPost();
+        void loadData();
 
         return () => {
             controller.abort();
         };
     }, [apiBaseUrl, slug]);
 
-    const rightAside = (
-        <>
-            <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                        阅读信息
-                    </h3>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        Meta
-                    </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                    {[
-                        [post?.category?.name ?? "未分类", "文章分类"],
-                        [post ? `${post.readingTime} min` : "--", "预计阅读时间"],
-                        [post ? formatDate(post.publishedAt) : "--", "发布时间"],
-                    ].map(([value, label]) => (
-                        <div
-                            key={label}
-                            className="rounded-xl bg-slate-50 px-3 py-3"
-                        >
-                            <div className="text-sm font-medium text-slate-900">
-                                {value}
-                            </div>
-                            <p className="mt-1 text-sm leading-6 text-slate-500">
-                                {label}
-                            </p>
-                        </div>
-                    ))}
-                </div>
-            </section>
-
-            <section className="rounded-2xl border border-slate-200/80 bg-white/90 p-4 shadow-sm">
-                <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-semibold text-slate-900">
-                        状态
-                    </h3>
-                    <span className="text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                        Sync
-                    </span>
-                </div>
-                <div className="mt-3 space-y-2">
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            {detailLoading ? "同步中" : "已加载"}
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            {detailLoading
-                                ? "正在请求最新文章内容。"
-                                : "当前显示的是可阅读正文。"}
-                        </p>
-                    </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-3">
-                        <div className="text-sm font-medium text-slate-900">
-                            React Router
-                        </div>
-                        <p className="mt-1 text-sm leading-6 text-slate-500">
-                            使用 React Router 管理 `/posts/:slug` 路由。
-                        </p>
-                    </div>
-                </div>
-            </section>
-        </>
+    const categoryItems = useMemo(
+        () => buildCategoryItems(publicPosts),
+        [publicPosts],
+    );
+    const tagItems = useMemo(() => buildTagItems(publicPosts), [publicPosts]);
+    const paragraphs = useMemo(
+        () => (post ? splitParagraphs(post.content) : []),
+        [post],
     );
 
     return (
-        <WingLayout
-            rightAside={rightAside}
+        <BlogFrame
+            leftAside={<BlogSidebar categories={categoryItems} tags={tagItems} />}
             main={
                 <>
-                    <section className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl border border-slate-200/80 bg-white/85 p-2 shadow-sm">
-                        <Link
-                            to={createHomePath()}
-                            className="rounded-xl bg-slate-900 px-3 py-2 text-sm text-white"
-                        >
-                            返回首页
-                        </Link>
-                        <span className="rounded-xl px-3 py-2 text-sm text-slate-500">
-                            {detailLoading ? "正在同步" : "文章详情"}
-                        </span>
-                    </section>
-
                     {detailError ? (
-                        <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+                        <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
                             {detailError}
                         </div>
                     ) : null}
 
                     {post ? (
-                        <article className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white/90 shadow-sm">
-                            <div className="overflow-hidden md:h-64">
-                                <img
-                                    src={post.coverImage}
-                                    alt={post.title}
-                                    className="h-full w-full object-cover"
-                                />
+                        <article className="overflow-hidden rounded-[30px] bg-white shadow-[0_12px_28px_rgba(96,121,148,0.12)]">
+                            <div className="border-b border-slate-100 px-6 py-5 md:px-8">
+                                <div className="flex flex-wrap items-center gap-5 text-sm text-slate-400">
+                                    <span className="inline-flex items-center gap-2">
+                                        ◫ {Math.max(post.readingTime * 285, 854)} words
+                                    </span>
+                                    <span className="inline-flex items-center gap-2">
+                                        ◌ {post.readingTime} minutes
+                                    </span>
+                                </div>
+
+                                <h1 className="mt-5 flex items-center gap-3 text-[34px] font-semibold tracking-[-0.05em] text-slate-950 md:text-[44px]">
+                                    <span className="inline-block h-9 w-1 rounded-full bg-sky-400" />
+                                    <span>{post.title}</span>
+                                </h1>
+
+                                <div className="mt-5 flex flex-wrap items-center gap-3 text-[15px] text-slate-400">
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-sky-500">
+                                        ◫ {formatDate(post.publishedAt)}
+                                    </span>
+                                    <span className="inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-sky-500">
+                                        ◌ {post.category?.name ?? "未分类"}
+                                    </span>
+                                    {(post.tags ?? []).map((tag) => (
+                                        <span
+                                            key={tag.id}
+                                            className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1"
+                                        >
+                                            # {tag.name}
+                                        </span>
+                                    ))}
+                                </div>
                             </div>
 
-                            <div className="p-5 md:p-6">
-                                <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-slate-400">
-                                    <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-medium normal-case tracking-normal text-rose-600">
-                                        {post.category?.name ?? "未分类"}
-                                    </span>
-                                    <span>{formatDate(post.publishedAt)}</span>
-                                    <span>{post.readingTime} min read</span>
+                            <div className="px-6 py-8 md:px-8">
+                                <div className="mb-8 overflow-hidden rounded-[24px]">
+                                    <img
+                                        src={post.coverImage}
+                                        alt={post.title}
+                                        className="h-[260px] w-full object-cover"
+                                    />
                                 </div>
 
-                                <h1 className="mt-3 text-[30px] font-semibold tracking-[-0.05em] text-slate-900 md:text-[34px]">
-                                    {post.title}
-                                </h1>
-                                <p className="mt-3 text-sm leading-7 text-slate-500">
-                                    {post.excerpt}
-                                </p>
+                                <div className="prose prose-slate max-w-none">
+                                    {paragraphs.map((paragraph, index) => {
+                                        if (index === 0) {
+                                            return (
+                                                <p
+                                                    key={`${post.slug}-${index}`}
+                                                    className="text-[17px] leading-9 text-slate-700"
+                                                >
+                                                    {paragraph}
+                                                </p>
+                                            );
+                                        }
 
-                                <div className="mt-4 flex items-center gap-3 rounded-2xl bg-slate-50 px-3 py-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-500 text-sm font-semibold text-white">
-                                        B
-                                    </div>
-                                    <div>
-                                        <strong className="text-sm text-slate-900">
-                                            blog-ai
-                                        </strong>
-                                        <p className="mt-1 text-sm text-slate-500">
-                                            {detailLoading
-                                                ? "正在同步最新内容..."
-                                                : "独立开发 / 技术写作 / 个人博客实验"}
-                                        </p>
-                                    </div>
-                                </div>
+                                        if (paragraph.length <= 16) {
+                                            return (
+                                                <h2
+                                                    key={`${post.slug}-${index}`}
+                                                    className="mt-10 text-[26px] font-semibold tracking-[-0.04em] text-slate-950"
+                                                >
+                                                    {paragraph.replace(/。$/, "")}
+                                                </h2>
+                                            );
+                                        }
 
-                                <div className="mt-5 space-y-4 text-[15px] leading-8 text-slate-700">
-                                    {post.content
-                                        .split("。")
-                                        .map((paragraph) => paragraph.trim())
-                                        .filter(Boolean)
-                                        .map((paragraph, index) => (
-                                            <p key={`${post.slug}-${index}`}>
-                                                {paragraph}。
+                                        return (
+                                            <p
+                                                key={`${post.slug}-${index}`}
+                                                className="mt-5 text-[17px] leading-9 text-slate-700"
+                                            >
+                                                {paragraph}
                                             </p>
-                                        ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </article>
                     ) : (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/80 px-4 py-5 text-sm text-slate-500">
-                            {detailLoading
-                                ? "正在加载文章..."
-                                : "暂时没有找到这篇文章"}
+                        <div className="rounded-[28px] bg-white px-5 py-6 text-sm text-slate-500 shadow-[0_10px_28px_rgba(96,121,148,0.10)]">
+                            {detailLoading ? "正在加载文章..." : "暂时没有找到这篇文章。"}
                         </div>
                     )}
                 </>
