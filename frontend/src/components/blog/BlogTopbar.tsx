@@ -29,24 +29,6 @@ export function BlogTopbar() {
                     >
                         首页
                     </NavLink>
-                    <a
-                        href="#archives"
-                        className="transition hover:text-slate-950"
-                    >
-                        归档
-                    </a>
-                    <a
-                        href="#about"
-                        className="transition hover:text-slate-950"
-                    >
-                        关于
-                    </a>
-                    <a
-                        href="#links"
-                        className="transition hover:text-slate-950"
-                    >
-                        友链
-                    </a>
                 </nav>
 
                 <div className="flex items-center gap-3">
