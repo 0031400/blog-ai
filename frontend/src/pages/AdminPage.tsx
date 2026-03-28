@@ -580,14 +580,10 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         };
     };
 
-    const toggleTagSelection = (tagId: number) => {
+    const applyValues = (patch: Partial<PostFormValues>) => {
         setValues((currentValues) => ({
             ...currentValues,
-            tagIds: currentValues.tagIds.includes(tagId)
-                ? currentValues.tagIds.filter(
-                      (currentTagId) => currentTagId !== tagId,
-                  )
-                : [...currentValues.tagIds, tagId],
+            ...patch,
         }));
     };
 
@@ -970,6 +966,7 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                         <div className="mt-4">
                             {editorOpen ? (
                                 <PostEditorSection
+                                    applyValues={applyValues}
                                     busy={busy}
                                     categories={categories}
                                     handleChange={handleChange}
@@ -980,7 +977,6 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
                                     slugPreview={slugPreview}
                                     submitting={submitting}
                                     tags={tags}
-                                    toggleTagSelection={toggleTagSelection}
                                     values={values}
                                     onSubmit={handleSubmit}
                                 />

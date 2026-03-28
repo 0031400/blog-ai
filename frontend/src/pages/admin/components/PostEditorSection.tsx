@@ -1,11 +1,13 @@
+import { useMemo, useState } from "react";
+
 import type { Category } from "../../../types/category.ts";
 import type { Post } from "../../../types/post.ts";
 import type { PostFormValues } from "../../../types/postForm.ts";
 import type { Tag } from "../../../types/tag.ts";
-import { inputClass } from "../shared.ts";
-import { Field } from "./Field.tsx";
+import { EditorSettingsModal } from "./EditorSettingsModal.tsx";
 
 type PostEditorSectionProps = {
+    applyValues: (patch: Partial<PostFormValues>) => void;
     busy: boolean;
     categories: Category[];
     handleChange: (
@@ -23,11 +25,11 @@ type PostEditorSectionProps = {
     slugPreview: string;
     submitting: boolean;
     tags: Tag[];
-    toggleTagSelection: (tagId: number) => void;
     values: PostFormValues;
 };
 
 export function PostEditorSection({
+    applyValues,
     busy,
     categories,
     handleChange,
@@ -39,239 +41,230 @@ export function PostEditorSection({
     slugPreview,
     submitting,
     tags,
-    toggleTagSelection,
     values,
 }: PostEditorSectionProps) {
+    const [settingsOpen, setSettingsOpen] = useState(false);
+
+    const previewBlocks = useMemo(
+        () =>
+            values.content
+                .split(/\n+/)
+                .map((line) => line.trim())
+                .filter(Boolean),
+        [values.content],
+    );
+
     return (
-        <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 bg-slate-50/70 px-5 py-4">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                        <div className="text-sm font-medium text-slate-900">
-                            {isEditingPost ? "编辑文章" : "新建文章"}
-                        </div>
-                        <div className="mt-1 text-sm text-slate-500">
-                            Slug 预览：`/posts/{slugPreview}`
+        <>
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+                <div className="flex min-h-[calc(100vh-180px)] flex-col">
+                    <div className="border-b border-slate-200 px-5 py-4">
+                        <div className="flex flex-wrap items-center justify-between gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="text-[30px] font-semibold tracking-[-0.05em] text-slate-900">
+                                    文章
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <button
+                                    type="button"
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600"
+                                >
+                                    预览
+                                </button>
+                                <button
+                                    type="submit"
+                                    form="post-editor-form"
+                                    disabled={submitting || busy}
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                                >
+                                    保存
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setSettingsOpen(true)}
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
+                                >
+                                    设置
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={resetPostForm}
+                                    className="rounded-lg bg-slate-900 px-4 py-2 text-sm text-white"
+                                >
+                                    发布
+                                </button>
+                            </div>
                         </div>
                     </div>
-                    <button
-                        type="button"
-                        onClick={resetPostForm}
-                        className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600"
-                    >
-                        返回列表
-                    </button>
-                </div>
-            </div>
 
-            <form onSubmit={onSubmit} className="space-y-6 px-5 py-5">
-                <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_360px]">
-                    <div className="space-y-5">
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="标题">
+                    <div className="border-b border-slate-200 px-5 py-3 text-slate-500">
+                        <div className="flex flex-wrap items-center gap-5 text-lg">
+                            {[
+                                "H",
+                                "B",
+                                "I",
+                                "❝",
+                                "🔗",
+                                "</>",
+                                "{ }",
+                                "≣",
+                                "☑",
+                                "⊞",
+                                "Σ",
+                                "🖼",
+                            ].map((item) => (
+                                <button
+                                    key={item}
+                                    type="button"
+                                    className="text-slate-500 transition hover:text-slate-800"
+                                >
+                                    {item}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <form
+                        id="post-editor-form"
+                        onSubmit={onSubmit}
+                        className="grid min-h-0 flex-1 lg:grid-cols-2"
+                    >
+                        <div className="min-h-[420px] border-b border-slate-200 lg:border-b-0 lg:border-r">
+                            <div className="border-b border-slate-100 px-5 py-4">
                                 <input
                                     value={values.title}
                                     onChange={handleChange("title")}
-                                    required
-                                    className={inputClass}
+                                    placeholder="请输入文章标题"
+                                    className="w-full border-0 p-0 text-[28px] font-semibold tracking-[-0.04em] text-slate-900 outline-none placeholder:text-slate-300"
                                 />
-                            </Field>
-                            <Field label="Slug">
-                                <input
-                                    value={values.slug}
-                                    onChange={handleChange("slug")}
-                                    required
-                                    className={inputClass}
-                                />
-                            </Field>
-                        </div>
-
-                        <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="摘要">
+                            </div>
+                            <div className="px-5 py-4">
                                 <textarea
-                                    value={values.excerpt}
-                                    onChange={handleChange("excerpt")}
-                                    required
-                                    rows={4}
-                                    className={inputClass}
+                                    value={values.content}
+                                    onChange={handleChange("content")}
+                                    placeholder="开始编写你的文章内容..."
+                                    className="min-h-[520px] w-full resize-none border-0 p-0 text-[17px] leading-8 text-slate-800 outline-none placeholder:text-slate-300"
                                 />
-                            </Field>
-                            <Field label="封面图 URL">
-                                <input
-                                    value={values.coverImage}
-                                    onChange={handleChange("coverImage")}
-                                    required
-                                    className={inputClass}
-                                />
-                            </Field>
+                            </div>
                         </div>
 
-                        <Field label="正文">
-                            <textarea
-                                value={values.content}
-                                onChange={handleChange("content")}
-                                required
-                                rows={18}
-                                className={inputClass}
-                            />
-                        </Field>
-                    </div>
-
-                    <div className="space-y-5">
-                        <section className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4">
-                            <div className="text-sm font-medium text-slate-900">
-                                发布设置
+                        <div className="min-h-[420px] bg-white">
+                            <div className="border-b border-slate-100 px-6 py-4 text-sm text-slate-400">
+                                Slug: `/posts/{slugPreview}`
                             </div>
-                            <div className="mt-4 space-y-4">
-                                <Field label="分类">
-                                    <select
-                                        value={values.categoryId}
-                                        onChange={handleChange("categoryId")}
-                                        className={inputClass}
-                                    >
-                                        <option value="">选择分类</option>
-                                        {categories.map((category) => (
-                                            <option
-                                                key={category.id}
-                                                value={category.id}
-                                            >
-                                                {category.name}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </Field>
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-                                    <Field label="阅读时长">
-                                        <input
-                                            min="1"
-                                            type="number"
-                                            value={values.readingTime}
-                                            onChange={handleChange("readingTime")}
-                                            required
-                                            className={inputClass}
-                                        />
-                                    </Field>
-                                    <Field label="发布时间">
-                                        <input
-                                            type="datetime-local"
-                                            value={values.publishedAt}
-                                            onChange={handleChange("publishedAt")}
-                                            required
-                                            className={inputClass}
-                                        />
-                                    </Field>
+                            <div className="px-6 py-5">
+                                <h1 className="text-[22px] font-semibold tracking-[-0.03em] text-slate-900">
+                                    {values.title || "未命名文章"}
+                                </h1>
+                                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-400">
+                                    <span>
+                                        {categories.find(
+                                            (category) =>
+                                                String(category.id) ===
+                                                values.categoryId,
+                                        )?.name ?? "未分类"}
+                                    </span>
+                                    <span>·</span>
+                                    <span>{values.readingTime || "0"} min</span>
+                                    <span>·</span>
+                                    <span>
+                                        {values.status === "published"
+                                            ? "已发布"
+                                            : "草稿"}
+                                    </span>
                                 </div>
-                                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
-                                    <Field label="发布状态">
-                                        <select
-                                            value={values.status}
-                                            onChange={handleChange("status")}
-                                            className={inputClass}
-                                        >
-                                            <option value="draft">草稿</option>
-                                            <option value="published">已发布</option>
-                                        </select>
-                                    </Field>
-                                    <Field label="可见性">
-                                        <select
-                                            value={values.visibility}
-                                            onChange={handleChange("visibility")}
-                                            className={inputClass}
-                                        >
-                                            <option value="public">公开</option>
-                                            <option value="private">私密</option>
-                                        </select>
-                                    </Field>
-                                </div>
-                            </div>
-                        </section>
 
-                        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <Field label="标签">
-                                <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                                    {tags.length ? (
-                                        <div className="flex flex-wrap gap-2">
-                                            {tags.map((tag) => {
-                                                const selected = values.tagIds.includes(
-                                                    tag.id,
-                                                );
-
+                                <div className="mt-6 space-y-4">
+                                    {previewBlocks.length ? (
+                                        previewBlocks.map((block, index) => {
+                                            if (block.startsWith("### ")) {
                                                 return (
-                                                    <button
-                                                        key={tag.id}
-                                                        type="button"
-                                                        onClick={() =>
-                                                            toggleTagSelection(tag.id)
-                                                        }
-                                                        className={`rounded-full border px-3 py-1.5 text-sm transition ${
-                                                            selected
-                                                                ? "border-slate-900 bg-slate-900 text-white"
-                                                                : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
-                                                        }`}
+                                                    <h3
+                                                        key={`${block}-${index}`}
+                                                        className="text-[18px] font-semibold text-slate-900"
                                                     >
-                                                        #{tag.name}
-                                                    </button>
+                                                        {block.replace(
+                                                            /^###\s*/,
+                                                            "",
+                                                        )}
+                                                    </h3>
                                                 );
-                                            })}
-                                        </div>
+                                            }
+
+                                            if (block.startsWith("## ")) {
+                                                return (
+                                                    <h2
+                                                        key={`${block}-${index}`}
+                                                        className="text-[22px] font-semibold text-slate-900"
+                                                    >
+                                                        {block.replace(
+                                                            /^##\s*/,
+                                                            "",
+                                                        )}
+                                                    </h2>
+                                                );
+                                            }
+
+                                            return (
+                                                <p
+                                                    key={`${block}-${index}`}
+                                                    className="text-[16px] leading-8 text-slate-700"
+                                                >
+                                                    {block}
+                                                </p>
+                                            );
+                                        })
                                     ) : (
-                                        <div className="text-sm text-slate-500">
-                                            还没有可用标签，请先去“标签”里创建。
+                                        <div className="text-sm text-slate-400">
+                                            右侧将在这里实时预览文章内容。
                                         </div>
                                     )}
                                 </div>
-                            </Field>
-                        </section>
-
-                        <section className="rounded-2xl border border-slate-200 bg-white p-4">
-                            <div className="flex flex-wrap gap-4">
-                                <label className="flex items-center gap-2 text-sm text-slate-600">
-                                    <input
-                                        type="checkbox"
-                                        checked={values.pinned}
-                                        onChange={handleChange("pinned")}
-                                    />
-                                    <span>置顶文章</span>
-                                </label>
-                                <label className="flex items-center gap-2 text-sm text-slate-600">
-                                    <input
-                                        type="checkbox"
-                                        checked={values.allowComment}
-                                        onChange={handleChange("allowComment")}
-                                    />
-                                    <span>允许评论</span>
-                                </label>
                             </div>
+                        </div>
+                    </form>
 
-                            <div className="mt-5 flex flex-wrap gap-2">
-                                <button
-                                    type="submit"
-                                    disabled={submitting || busy}
-                                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white disabled:opacity-60"
-                                >
-                                    {submitting
-                                        ? "提交中..."
-                                        : isEditingPost
-                                          ? "保存修改"
-                                          : "创建文章"}
-                                </button>
-                                {isEditingPost && !selectedPost?.deleted ? (
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            selectedPost && handleSoftDelete(selectedPost)
-                                        }
-                                        disabled={busy}
-                                        className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600 disabled:opacity-60"
-                                    >
-                                        移入回收站
-                                    </button>
-                                ) : null}
-                            </div>
-                        </section>
+                    <div className="flex items-center justify-between border-t border-slate-200 px-5 py-3 text-sm text-slate-400">
+                        <div>
+                            Words: {values.content.trim().length} Lines:{" "}
+                            {Math.max(values.content.split("\n").length, 1)}
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <label className="flex items-center gap-2">
+                                <input type="checkbox" checked readOnly />
+                                <span>Scroll sync</span>
+                            </label>
+                            <button type="button">Scroll to top</button>
+                        </div>
                     </div>
                 </div>
-            </form>
-        </section>
+            </section>
+
+            {isEditingPost && !selectedPost?.deleted ? (
+                <div className="mt-4 flex justify-end">
+                    <button
+                        type="button"
+                        onClick={() =>
+                            selectedPost && handleSoftDelete(selectedPost)
+                        }
+                        disabled={busy}
+                        className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-600 disabled:opacity-60"
+                    >
+                        移入回收站
+                    </button>
+                </div>
+            ) : null}
+
+            {settingsOpen ? (
+                <EditorSettingsModal
+                    categories={categories}
+                    onApply={applyValues}
+                    onClose={() => setSettingsOpen(false)}
+                    tags={tags}
+                    values={values}
+                />
+            ) : null}
+        </>
     );
 }
