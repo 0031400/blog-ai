@@ -78,6 +78,12 @@ type postResponse struct {
 	UpdatedAt    time.Time       `json:"updatedAt"`
 }
 
+type paginationResponse struct {
+	Page     int   `json:"page"`
+	PageSize int   `json:"pageSize"`
+	Total    int64 `json:"total"`
+}
+
 // PostHandler serves blog post resources.
 type PostHandler struct {
 	db *gorm.DB
@@ -91,6 +97,11 @@ func NewPostHandler(db *gorm.DB) PostHandler {
 // List returns posts. Public requests only see published/public/non-deleted posts.
 func (h PostHandler) List(c *gin.Context) {
 	var posts []model.Post
+	page := parsePositiveInt(c.Query("page"), 1)
+	pageSize := parsePositiveInt(c.Query("pageSize"), 10)
+	if pageSize > 100 {
+		pageSize = 100
+	}
 
 	query := h.postQuery()
 	if c.Query("scope") == "admin" {
@@ -102,12 +113,30 @@ func (h PostHandler) List(c *gin.Context) {
 		query = query.Where("posts.deleted = ? AND posts.status = ? AND posts.visibility = ?", false, "published", "public")
 	}
 
-	if err := query.Order("posts.pinned DESC").Order("posts.published_at DESC").Find(&posts).Error; err != nil {
+	var total int64
+	if err := query.Session(&gorm.Session{}).Distinct("posts.id").Count(&total).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to count posts"})
+		return
+	}
+
+	if err := query.
+		Order("posts.pinned DESC").
+		Order("posts.published_at DESC").
+		Limit(pageSize).
+		Offset((page - 1) * pageSize).
+		Find(&posts).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load posts"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": buildPostResponses(posts)})
+	c.JSON(http.StatusOK, gin.H{
+		"data": buildPostResponses(posts),
+		"pagination": paginationResponse{
+			Page:     page,
+			PageSize: pageSize,
+			Total:    total,
+		},
+	})
 }
 
 func isAdminRequestAllowed(c *gin.Context) bool {
@@ -527,4 +556,24 @@ func normalizeVisibility(visibility string) string {
 
 func isUniqueConstraintError(err error) bool {
 	return strings.Contains(strings.ToLower(err.Error()), "unique")
+}
+
+func parsePositiveInt(raw string, fallback int) int {
+	if raw == "" {
+		return fallback
+	}
+
+	value := 0
+	for _, ch := range raw {
+		if ch < '0' || ch > '9' {
+			return fallback
+		}
+		value = value*10 + int(ch-'0')
+	}
+
+	if value <= 0 {
+		return fallback
+	}
+
+	return value
 }

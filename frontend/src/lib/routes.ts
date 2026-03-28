@@ -9,8 +9,12 @@ export function createPostPath(slug: string) {
     return `/posts/${encodeURIComponent(slug)}`;
 }
 
-export function createHomePath() {
-    return homePath;
+export function createHomePath(page?: number) {
+    if (!page || page <= 1) {
+        return homePath;
+    }
+
+    return `${homePath}?page=${page}`;
 }
 
 export function createAdminPath() {
