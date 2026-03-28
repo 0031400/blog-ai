@@ -14,7 +14,7 @@ const panelClass =
 export function WingLayout({ main, rightAside }: WingLayoutProps) {
     return (
         <div className="min-h-screen bg-[linear-gradient(180deg,#f8fafc_0%,#f3f4f6_100%)] text-slate-800">
-            <div className="mx-auto w-full max-w-[1360px] px-3 py-3 md:px-4 md:py-4">
+            <div className="mx-auto w-full max-w-340 px-3 py-3 md:px-4 md:py-4">
                 <div className="rounded-[28px] border border-white/80 bg-white/55 p-3 shadow-[0_12px_40px_rgba(15,23,42,0.06)] backdrop-blur md:p-4">
                     <header className="mb-3 flex flex-col gap-3 rounded-2xl border border-slate-200/80 bg-white/85 px-4 py-3 md:flex-row md:items-center md:justify-between md:px-5">
                         <div>
@@ -29,7 +29,7 @@ export function WingLayout({ main, rightAside }: WingLayoutProps) {
                             </Link>
                         </div>
 
-                        <div className="flex items-center gap-2 md:w-[360px]">
+                        <div className="flex items-center gap-2 md:w-90">
                             <div className="flex flex-1 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-500">
                                 <input
                                     type="text"
