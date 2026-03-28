@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 
 import { BlogFrame } from "../components/blog/BlogFrame.tsx";
 import { BlogSidebar } from "../components/blog/BlogSidebar.tsx";
+import { MarkdownContent } from "../components/MarkdownContent.tsx";
 import { fallbackPosts } from "../data/fallbackPosts.ts";
 import { formatDate } from "../lib/date";
 import { normalizePost } from "../lib/post.ts";
@@ -34,17 +35,6 @@ function buildTagItems(posts: Post[]) {
     });
 
     return [...tags].slice(0, 18);
-}
-
-function splitParagraphs(content: string) {
-    return content
-        .split(/\n+/)
-        .flatMap((block) => block.split("。"))
-        .map((paragraph) => paragraph.trim())
-        .filter(Boolean)
-        .map((paragraph) =>
-            paragraph.endsWith("。") ? paragraph : `${paragraph}。`,
-        );
 }
 
 export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
@@ -108,8 +98,9 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                 }
 
                 const fallbackPost =
-                    fallbackPosts.map(normalizePost).find((item) => item.slug === slug) ??
-                    null;
+                    fallbackPosts
+                        .map(normalizePost)
+                        .find((item) => item.slug === slug) ?? null;
                 setPost(fallbackPost);
                 setPublicPosts(
                     fallbackPosts
@@ -139,10 +130,6 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
         [publicPosts],
     );
     const tagItems = useMemo(() => buildTagItems(publicPosts), [publicPosts]);
-    const paragraphs = useMemo(
-        () => (post ? splitParagraphs(post.content) : []),
-        [post],
-    );
 
     return (
         <BlogFrame
@@ -199,40 +186,7 @@ export function PostDetailPage({ apiBaseUrl }: PostDetailPageProps) {
                                     />
                                 </div>
 
-                                <div className="prose prose-slate max-w-none">
-                                    {paragraphs.map((paragraph, index) => {
-                                        if (index === 0) {
-                                            return (
-                                                <p
-                                                    key={`${post.slug}-${index}`}
-                                                    className="text-[17px] leading-9 text-slate-700"
-                                                >
-                                                    {paragraph}
-                                                </p>
-                                            );
-                                        }
-
-                                        if (paragraph.length <= 16) {
-                                            return (
-                                                <h2
-                                                    key={`${post.slug}-${index}`}
-                                                    className="mt-10 text-[26px] font-semibold tracking-[-0.04em] text-slate-950"
-                                                >
-                                                    {paragraph.replace(/。$/, "")}
-                                                </h2>
-                                            );
-                                        }
-
-                                        return (
-                                            <p
-                                                key={`${post.slug}-${index}`}
-                                                className="mt-5 text-[17px] leading-9 text-slate-700"
-                                            >
-                                                {paragraph}
-                                            </p>
-                                        );
-                                    })}
-                                </div>
+                                <MarkdownContent content={post.content} />
                             </div>
                         </article>
                     ) : (

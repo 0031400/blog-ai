@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import { MarkdownContent } from "../../../components/MarkdownContent.tsx";
 import type { Category } from "../../../types/category.ts";
 import type { Post } from "../../../types/post.ts";
 import type { PostFormValues } from "../../../types/postForm.ts";
@@ -45,12 +46,8 @@ export function PostEditorSection({
 }: PostEditorSectionProps) {
     const [settingsOpen, setSettingsOpen] = useState(false);
 
-    const previewBlocks = useMemo(
-        () =>
-            values.content
-                .split(/\n+/)
-                .map((line) => line.trim())
-                .filter(Boolean),
+    const previewContent = useMemo(
+        () => values.content.trim(),
         [values.content],
     );
 
@@ -143,8 +140,8 @@ export function PostEditorSection({
                                 <textarea
                                     value={values.content}
                                     onChange={handleChange("content")}
-                                    placeholder="开始编写你的文章内容..."
-                                    className="min-h-[520px] w-full resize-none border-0 p-0 text-[17px] leading-8 text-slate-800 outline-none placeholder:text-slate-300"
+                                    placeholder="开始编写你的 Markdown 内容..."
+                                    className="min-h-[520px] w-full resize-none border-0 p-0 font-mono text-[16px] leading-8 text-slate-800 outline-none placeholder:text-slate-300"
                                 />
                             </div>
                         </div>
@@ -175,49 +172,15 @@ export function PostEditorSection({
                                     </span>
                                 </div>
 
-                                <div className="mt-6 space-y-4">
-                                    {previewBlocks.length ? (
-                                        previewBlocks.map((block, index) => {
-                                            if (block.startsWith("### ")) {
-                                                return (
-                                                    <h3
-                                                        key={`${block}-${index}`}
-                                                        className="text-[18px] font-semibold text-slate-900"
-                                                    >
-                                                        {block.replace(
-                                                            /^###\s*/,
-                                                            "",
-                                                        )}
-                                                    </h3>
-                                                );
-                                            }
-
-                                            if (block.startsWith("## ")) {
-                                                return (
-                                                    <h2
-                                                        key={`${block}-${index}`}
-                                                        className="text-[22px] font-semibold text-slate-900"
-                                                    >
-                                                        {block.replace(
-                                                            /^##\s*/,
-                                                            "",
-                                                        )}
-                                                    </h2>
-                                                );
-                                            }
-
-                                            return (
-                                                <p
-                                                    key={`${block}-${index}`}
-                                                    className="text-[16px] leading-8 text-slate-700"
-                                                >
-                                                    {block}
-                                                </p>
-                                            );
-                                        })
+                                <div className="mt-6">
+                                    {previewContent ? (
+                                        <MarkdownContent
+                                            content={previewContent}
+                                            className="prose-p:my-4"
+                                        />
                                     ) : (
                                         <div className="text-sm text-slate-400">
-                                            右侧将在这里实时预览文章内容。
+                                            右侧将在这里实时预览 Markdown 内容。
                                         </div>
                                     )}
                                 </div>
