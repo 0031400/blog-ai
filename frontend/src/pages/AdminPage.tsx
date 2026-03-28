@@ -46,6 +46,22 @@ const createInitialValues = (): PostFormValues => ({
     publishedAt: new Date().toISOString().slice(0, 16),
 });
 
+function getDefaultCategoryId(categories: Category[]) {
+    return categories.length > 0 ? String(categories[0].id) : "";
+}
+
+function validatePostValues(values: PostFormValues) {
+    if (!values.title.trim()) {
+        return "标题不能为空。";
+    }
+
+    if (!values.content.trim()) {
+        return "正文不能为空。";
+    }
+
+    return "";
+}
+
 function formatAdminError(error: unknown, fallback: string) {
     if (!(error instanceof Error)) {
         return fallback;
@@ -366,9 +382,28 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
         }
 
         setSelectedPostId(null);
-        setValues(createInitialValues());
+        setValues({
+            ...createInitialValues(),
+            categoryId: getDefaultCategoryId(categories),
+        });
         setError("");
-    }, [activeViewMode, editorOpen, editorPostId]);
+    }, [activeViewMode, categories, editorOpen, editorPostId]);
+
+    useEffect(() => {
+        if (!editorOpen || selectedPostId !== null || values.categoryId) {
+            return;
+        }
+
+        const defaultCategoryId = getDefaultCategoryId(categories);
+        if (!defaultCategoryId) {
+            return;
+        }
+
+        setValues((currentValues) => ({
+            ...currentValues,
+            categoryId: defaultCategoryId,
+        }));
+    }, [categories, editorOpen, selectedPostId, values.categoryId]);
 
     useEffect(() => {
         if (!editorOpen || editorPostId === null) {
@@ -514,6 +549,11 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     const openCreateEditor = () => {
         setError("");
         setSuccessMessage("");
+        setSelectedPostId(null);
+        setValues({
+            ...createInitialValues(),
+            categoryId: getDefaultCategoryId(categories),
+        });
         navigate(createAdminPostEditorPath());
     };
 
@@ -575,6 +615,12 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        const validationError = validatePostValues(values);
+        if (validationError) {
+            setError(validationError);
+            setSuccessMessage("");
+            return;
+        }
         setSubmitting(true);
         setError("");
         setSuccessMessage("");
@@ -620,11 +666,17 @@ export function AdminPage({ apiBaseUrl }: AdminPageProps) {
     };
 
     const submitPost = async (patch?: Partial<PostFormValues>) => {
+        const nextValues = { ...values, ...patch };
+        const validationError = validatePostValues(nextValues);
+        if (validationError) {
+            setError(validationError);
+            setSuccessMessage("");
+            return;
+        }
+
         setSubmitting(true);
         setError("");
         setSuccessMessage("");
-
-        const nextValues = { ...values, ...patch };
 
         try {
             const endpoint = isEditingPost
